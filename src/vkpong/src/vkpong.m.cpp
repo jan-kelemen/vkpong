@@ -1,8 +1,18 @@
-// clang-format off
-#include <vulkan/vulkan.h>
-#include <GLFW/glfw3.h>
-// clang-format on
+#include <vkcontext.hpp>
+#include <window.hpp>
 
-#include <glm/glm.hpp>
+#ifdef NDEBUG
+constexpr bool enable_validation_layers{false};
+#else
+constexpr bool enable_validation_layers{true};
+#endif
 
-int main() { }
+int main()
+{
+    vkpong::window window;
+    {
+        auto context{
+            vkpong::create_context(window.handle(), enable_validation_layers)};
+        window.loop();
+    }
+}
