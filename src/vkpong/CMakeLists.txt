@@ -7,6 +7,8 @@ target_sources(vkpong
         ${CMAKE_CURRENT_SOURCE_DIR}/src/vulkan_context.hpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/vulkan_device.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/vulkan_device.hpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/vulkan_swap_chain.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/vulkan_swap_chain.hpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/window.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/window.hpp
 )

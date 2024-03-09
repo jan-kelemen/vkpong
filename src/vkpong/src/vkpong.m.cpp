@@ -1,5 +1,6 @@
 #include <vulkan_context.hpp>
 #include <vulkan_device.hpp>
+#include <vulkan_swap_chain.hpp>
 #include <window.hpp>
 
 #ifdef NDEBUG
@@ -15,6 +16,9 @@ int main()
         auto context{
             vkpong::create_context(window.handle(), enable_validation_layers)};
         auto device{vkpong::create_device(context.get())};
+        auto swap_chain{vkpong::create_swap_chain(window.handle(),
+            context.get(),
+            device.get())};
 
         window.loop();
     }

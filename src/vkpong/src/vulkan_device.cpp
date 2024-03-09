@@ -73,21 +73,14 @@ namespace
         return indices;
     }
 
-    struct [[nodiscard]] swap_chain_support_details
-    {
-        VkSurfaceCapabilitiesKHR capabilities;
-        std::vector<VkSurfaceFormatKHR> formats;
-        std::vector<VkPresentModeKHR> present_modes;
-    };
-
-    swap_chain_support_details query_swap_chain_support(VkPhysicalDevice device,
+    vkpong::swap_chain_support query_swap_chain_support(VkPhysicalDevice device,
         VkSurfaceKHR surface)
     {
-        swap_chain_support_details details;
+        vkpong::swap_chain_support rv;
 
         vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device,
             surface,
-            &details.capabilities);
+            &rv.capabilities);
 
         uint32_t format_count{};
         vkGetPhysicalDeviceSurfaceFormatsKHR(device,
@@ -96,11 +89,11 @@ namespace
             nullptr);
         if (format_count != 0)
         {
-            details.formats.resize(format_count);
+            rv.surface_formats.resize(format_count);
             vkGetPhysicalDeviceSurfaceFormatsKHR(device,
                 surface,
                 &format_count,
-                details.formats.data());
+                rv.surface_formats.data());
         }
 
         uint32_t present_count{};
@@ -110,14 +103,14 @@ namespace
             nullptr);
         if (present_count != 0)
         {
-            details.present_modes.resize(present_count);
+            rv.present_modes.resize(present_count);
             vkGetPhysicalDeviceSurfacePresentModesKHR(device,
                 surface,
                 &present_count,
-                details.present_modes.data());
+                rv.present_modes.data());
         }
 
-        return details;
+        return rv;
     }
 
     [[nodiscard]] bool extensions_supported(VkPhysicalDevice device)
@@ -143,25 +136,44 @@ namespace
     }
 
     [[nodiscard]] bool is_device_suitable(VkPhysicalDevice device,
-        VkSurfaceKHR surface)
+        VkSurfaceKHR surface,
+        queue_family_indices& indices,
+        vkpong::swap_chain_support& swap_chain_support)
     {
-        auto const indices{find_queue_families(device, surface)};
-
-        bool swap_chain_adequate = false;
-        if (extensions_supported(device))
+        if (!extensions_supported(device))
         {
-            auto const swap_chain_support{
-                query_swap_chain_support(device, surface)};
-
-            swap_chain_adequate = !swap_chain_support.formats.empty() &&
-                !swap_chain_support.present_modes.empty();
+            return false;
         }
 
-        VkPhysicalDeviceFeatures supported_features;
-        vkGetPhysicalDeviceFeatures(device, &supported_features);
+        auto families{find_queue_families(device, surface)};
+        bool const has_queue_families{
+            families.graphics_family && families.present_family};
+        if (!has_queue_families)
+        {
+            return false;
+        }
 
-        return indices.graphics_family && indices.present_family &&
-            swap_chain_adequate && supported_features.samplerAnisotropy;
+        auto swap_chain{query_swap_chain_support(device, surface)};
+        bool const swap_chain_adequate = {!swap_chain.surface_formats.empty() &&
+            !swap_chain.present_modes.empty()};
+        if (!swap_chain_adequate)
+        {
+            return false;
+        }
+
+        VkPhysicalDeviceFeatures supported_features{};
+        vkGetPhysicalDeviceFeatures(device, &supported_features);
+        bool const features_adequate{
+            supported_features.samplerAnisotropy == VK_TRUE};
+        if (!features_adequate)
+        {
+            return false;
+        }
+
+        indices = std::move(families);
+        swap_chain_support = std::move(swap_chain);
+
+        return true;
     }
 } // namespace
 
@@ -179,9 +191,17 @@ std::unique_ptr<vkpong::vulkan_device> vkpong::create_device(
 
     std::vector<VkPhysicalDevice> devices{count};
     vkEnumeratePhysicalDevices(context->instance, &count, devices.data());
+
+    queue_family_indices device_indices;
+    swap_chain_support swap_chain;
     auto const device_it{std::ranges::find_if(devices,
-        [context](auto const& device)
-        { return is_device_suitable(device, context->surface); })};
+        [context, &device_indices, &swap_chain](auto const& device) mutable
+        {
+            return is_device_suitable(device,
+                context->surface,
+                device_indices,
+                swap_chain);
+        })};
     if (device_it == devices.cend())
     {
         throw std::runtime_error{"failed to find a suitable GPU!"};
@@ -189,11 +209,9 @@ std::unique_ptr<vkpong::vulkan_device> vkpong::create_device(
 
     auto rv{std::make_unique<vulkan_device>()};
     rv->physical = *device_it;
-
-    queue_family_indices const device_indices{
-        find_queue_families(rv->physical, context->surface)};
     rv->graphics_family = device_indices.graphics_family.value_or(0);
     rv->present_family = device_indices.present_family.value_or(0);
+    rv->swap_chain_details = std::move(swap_chain);
 
     float const priority{1.0f};
     std::set<uint32_t> const unique_families{rv->graphics_family,
