@@ -94,7 +94,7 @@ namespace
 
 } // namespace
 
-vkpong::swap_chain::~swap_chain()
+vkpong::vulkan_swap_chain::~vulkan_swap_chain()
 {
     for (size_t i{}; i != images_.size(); ++i)
     {
@@ -104,7 +104,7 @@ vkpong::swap_chain::~swap_chain()
     vkDestroySwapchainKHR(device_->logical, chain, nullptr);
 }
 
-std::unique_ptr<vkpong::swap_chain> vkpong::create_swap_chain(
+std::unique_ptr<vkpong::vulkan_swap_chain> vkpong::create_swap_chain(
     GLFWwindow* const window,
     vulkan_context* const context,
     vulkan_device* const device)
@@ -116,7 +116,7 @@ std::unique_ptr<vkpong::swap_chain> vkpong::create_swap_chain(
     VkSurfaceFormatKHR const surface_format{
         choose_swap_surface_format(swap_details.surface_formats)};
 
-    auto rv{std::make_unique<swap_chain>()};
+    auto rv{std::make_unique<vulkan_swap_chain>()};
     rv->image_format_ = surface_format.format;
     rv->extent_ = choose_swap_extent(window, swap_details.capabilities);
 
