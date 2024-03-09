@@ -2,9 +2,11 @@ add_executable(vkpong)
 
 target_sources(vkpong
     PRIVATE
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/vkcontext.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/vkcontext.hpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/vkpong.m.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/vulkan_context.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/vulkan_context.hpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/vulkan_device.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/vulkan_device.hpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/window.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/window.hpp
 )

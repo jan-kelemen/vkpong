@@ -13,9 +13,9 @@ namespace vkpong
     class [[nodiscard]] vulkan_context final
     {
     public:
-        VkInstance instance;
-        std::optional<VkDebugUtilsMessengerEXT> debug_messenger;
-        VkSurfaceKHR surface;
+        VkInstance instance{};
+        std::optional<VkDebugUtilsMessengerEXT> debug_messenger{};
+        VkSurfaceKHR surface{};
 
     public: // Destruction
         ~vulkan_context();
