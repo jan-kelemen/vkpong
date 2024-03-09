@@ -1,6 +1,7 @@
 #ifndef VKPONG_WINDOW_INCLUDED
 #define VKPONG_WINDOW_INCLUDED
 
+#include <functional>
 #include <memory>
 
 struct GLFWwindow;
@@ -23,7 +24,7 @@ namespace vkpong
         window(window&&) noexcept = delete;
 
     public: // Interface
-        void loop();
+        void loop(std::function<void()> callback);
 
         [[nodiscard]] GLFWwindow* handle() const noexcept
         {

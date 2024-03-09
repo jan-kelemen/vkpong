@@ -1,6 +1,7 @@
 #include <vulkan_context.hpp>
 #include <vulkan_device.hpp>
 #include <vulkan_pipeline.hpp>
+#include <vulkan_renderer.hpp>
 #include <vulkan_swap_chain.hpp>
 #include <window.hpp>
 
@@ -21,7 +22,11 @@ int main()
             context.get(),
             device.get())};
         auto pipeline{vkpong::create_pipeline(device.get(), swap_chain.get())};
+        auto renderer{vkpong::vulkan_renderer{std::move(context),
+            std::move(device),
+            std::move(swap_chain),
+            std::move(pipeline)}};
 
-        window.loop();
+        window.loop([&renderer]() { renderer.draw(); });
     }
 }

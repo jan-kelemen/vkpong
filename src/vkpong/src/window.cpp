@@ -28,11 +28,12 @@ vkpong::window::window(int width, int height)
     glfwSetFramebufferSizeCallback(impl_.get(), framebuffer_resize_callback);
 }
 
-void vkpong::window::loop()
+void vkpong::window::loop(std::function<void()> callback)
 {
     while (!glfwWindowShouldClose(impl_.get()))
     {
         glfwPollEvents();
+        callback();
     }
 }
 

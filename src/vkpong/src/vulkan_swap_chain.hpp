@@ -20,16 +20,16 @@ namespace vkpong
     {
     public:
         VkFormat image_format_{};
+        VkSwapchainKHR chain{};
+        VkExtent2D extent_{};
+        std::vector<VkImage> images_;
+        std::vector<VkImageView> image_views_;
 
     public: // Destruction
         ~vulkan_swap_chain();
 
     private:
         vulkan_device* device_{};
-        VkSwapchainKHR chain{};
-        VkExtent2D extent_{};
-        std::vector<VkImage> images_;
-        std::vector<VkImageView> image_views_;
 
         friend std::unique_ptr<vulkan_swap_chain> create_swap_chain(GLFWwindow*,
             vulkan_context* context,
