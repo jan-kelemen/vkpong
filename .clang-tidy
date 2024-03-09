@@ -1,0 +1,26 @@
+﻿---
+Checks: '
+  bugprone-*,
+  clang-analyzer-*,
+  cppcoreguidelines-*,
+  -cppcoreguidelines-macro-usage,
+  -cppcoreguidelines-avoid-do-while,
+  -cppcoreguidelines-avoid-magic-numbers,
+  -cppcoreguidelines-non-private-member-variables-in-classes,
+  misc-*,
+  -misc-non-private-member-variables-in-classes,
+  -misc-include-cleaner,
+  modernize-*,
+  -modernize-use-trailing-return-type,
+  performance-*,
+  portability-*,
+  readability-*,
+  -readability-magic-numbers
+  -readability-redundant-access-specifiers
+  -readability-uppercase-literal-suffix
+'
+FormatStyle: 'file'
+
+CheckOptions:
+  - key: readability-identifier-length.IgnoredVariableNames
+    value: 'rv|ec|it'
