@@ -29,40 +29,6 @@ namespace
         return rv;
     }
 
-    VkSemaphore create_semaphore(vkpong::vulkan_device* const device)
-    {
-        VkSemaphoreCreateInfo semaphore_info{};
-        semaphore_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
-
-        VkSemaphore rv;
-        if (vkCreateSemaphore(device->logical, &semaphore_info, nullptr, &rv) !=
-            VK_SUCCESS)
-        {
-            throw std::runtime_error{"failed to create semaphore"};
-        }
-
-        return rv;
-    }
-
-    VkFence create_fence(vkpong::vulkan_device* const device, bool set_signaled)
-    {
-        VkFenceCreateInfo fence_info{};
-        fence_info.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
-        if (set_signaled)
-        {
-            fence_info.flags = VK_FENCE_CREATE_SIGNALED_BIT;
-        }
-
-        VkFence rv;
-        if (vkCreateFence(device->logical, &fence_info, nullptr, &rv) !=
-            VK_SUCCESS)
-        {
-            throw std::runtime_error{"failed to create fence"};
-        }
-
-        return rv;
-    }
-
     VkCommandBuffer create_command_buffer(vkpong::vulkan_device* const device,
         VkCommandPool command_pool)
     {
@@ -94,96 +60,26 @@ vkpong::vulkan_renderer::vulkan_renderer(
     , pipeline_{std::move(pipeline)}
     , command_pool_{create_command_pool(device_.get())}
     , command_buffer_{create_command_buffer(device_.get(), command_pool_)}
-    , image_available_{create_semaphore(device_.get())}
-    , render_finished_{create_semaphore(device_.get())}
-    , in_flight_{create_fence(device_.get(), true)}
 {
-    vkGetDeviceQueue(device_->logical,
-        device_->graphics_family,
-        0,
-        &graphics_queue_);
-
-    vkGetDeviceQueue(device_->logical,
-        device_->present_family,
-        0,
-        &present_queue_);
 }
 
 vkpong::vulkan_renderer::~vulkan_renderer()
 {
-    vkDestroyFence(device_->logical, in_flight_, nullptr);
-    vkDestroySemaphore(device_->logical, render_finished_, nullptr);
-    vkDestroySemaphore(device_->logical, image_available_, nullptr);
     vkDestroyCommandPool(device_->logical, command_pool_, nullptr);
 }
 
 void vkpong::vulkan_renderer::draw()
 {
-    constexpr auto timeout{std::numeric_limits<uint64_t>::max()};
-    vkWaitForFences(device_->logical, 1, &in_flight_, VK_TRUE, UINT64_MAX);
-
     uint32_t image_index{};
-    VkResult result{vkAcquireNextImageKHR(device_->logical,
-        swap_chain_->chain,
-        timeout,
-        image_available_,
-        VK_NULL_HANDLE,
-        &image_index)};
-    if (result == VK_ERROR_OUT_OF_DATE_KHR)
+    if (!swap_chain_->acquire_next_image(image_index))
     {
-        swap_chain_->recreate();
         return;
     }
-    else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR)
-    {
-        throw std::runtime_error{"failed to acquire swap chain image"};
-    }
-    vkResetFences(device_->logical, 1, &in_flight_);
 
     vkResetCommandBuffer(command_buffer_, 0);
     record_command_buffer(image_index);
 
-    std::array const wait_semaphores{image_available_};
-    std::array<VkPipelineStageFlags, 1> const wait_stages{
-        VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
-    std::array const signal_semaphores{render_finished_};
-
-    VkSubmitInfo submit_info{};
-    submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-    submit_info.waitSemaphoreCount = 1;
-    submit_info.pWaitSemaphores = wait_semaphores.data();
-    submit_info.pWaitDstStageMask = wait_stages.data();
-    submit_info.commandBufferCount = 1;
-    submit_info.pCommandBuffers = &command_buffer_;
-    submit_info.signalSemaphoreCount = 1;
-    submit_info.pSignalSemaphores = signal_semaphores.data();
-
-    if (vkQueueSubmit(graphics_queue_, 1, &submit_info, in_flight_) !=
-        VK_SUCCESS)
-    {
-        throw std::runtime_error("failed to submit draw command buffer!");
-    }
-
-    std::array swapchains{swap_chain_->chain};
-    VkPresentInfoKHR present_info{};
-    present_info.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
-    present_info.waitSemaphoreCount = 1;
-    present_info.pWaitSemaphores = signal_semaphores.data();
-    present_info.swapchainCount = 1;
-    present_info.pSwapchains = swapchains.data();
-    present_info.pImageIndices = &image_index;
-
-    result = vkQueuePresentKHR(present_queue_, &present_info);
-    if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR)
-    {
-        // todo-jk
-        // framebuffer_resized = false;
-        swap_chain_->recreate();
-    }
-    else if (result != VK_SUCCESS)
-    {
-        throw std::runtime_error{"failed to present swap chain image!"};
-    }
+    swap_chain_->submit_command_buffer(&command_buffer_, image_index);
 }
 
 void vkpong::vulkan_renderer::record_command_buffer(uint32_t const image_index)

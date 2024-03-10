@@ -46,13 +46,8 @@ namespace vkpong
         std::unique_ptr<vulkan_device> device_;
         std::unique_ptr<vulkan_swap_chain> swap_chain_;
         std::unique_ptr<vulkan_pipeline> pipeline_;
-        VkQueue graphics_queue_{};
-        VkQueue present_queue_{};
         VkCommandPool command_pool_{};
         VkCommandBuffer command_buffer_{};
-        VkSemaphore image_available_{};
-        VkSemaphore render_finished_{};
-        VkFence in_flight_{};
     };
 } // namespace vkpong
 

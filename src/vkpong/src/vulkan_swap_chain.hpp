@@ -35,20 +35,43 @@ namespace vkpong
         std::vector<VkImage> images_;
         std::vector<VkImageView> image_views_;
 
+    public: // Construction
+        vulkan_swap_chain(GLFWwindow* window,
+            vulkan_context* context,
+            vulkan_device* device);
+
+        vulkan_swap_chain(vulkan_swap_chain const&) = delete;
+
+        vulkan_swap_chain(vulkan_swap_chain&&) noexcept = delete;
+
     public: // Destruction
         ~vulkan_swap_chain();
 
     public: // Interface
-        void recreate();
+        [[nodiscard]] bool acquire_next_image(uint32_t& image_index);
+
+        void submit_command_buffer(VkCommandBuffer const* command_buffer,
+            uint32_t image_index);
+
+    public: // Operators
+        vulkan_swap_chain& operator=(vulkan_swap_chain const&) = delete;
+
+        vulkan_swap_chain& operator=(vulkan_swap_chain&&) noexcept = delete;
 
     private: // Helpers
         void create_chain_and_images();
         void cleanup();
+        void recreate();
 
     private:
         GLFWwindow* window_{};
         vulkan_context* context_{};
         vulkan_device* device_{};
+        VkSemaphore image_available_{};
+        VkSemaphore render_finished_{};
+        VkFence in_flight_{};
+        VkQueue graphics_queue_{};
+        VkQueue present_queue_{};
 
         friend std::unique_ptr<vulkan_swap_chain> create_swap_chain(GLFWwindow*,
             vulkan_context* context,

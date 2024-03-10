@@ -7,6 +7,7 @@
 
 #include <algorithm>
 #include <array>
+#include <limits>
 #include <span>
 #include <stdexcept>
 
@@ -92,6 +93,41 @@ namespace
         return imageView;
     }
 
+    [[nodiscard]] VkSemaphore create_semaphore(
+        vkpong::vulkan_device* const device)
+    {
+        VkSemaphoreCreateInfo semaphore_info{};
+        semaphore_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+
+        VkSemaphore rv;
+        if (vkCreateSemaphore(device->logical, &semaphore_info, nullptr, &rv) !=
+            VK_SUCCESS)
+        {
+            throw std::runtime_error{"failed to create semaphore"};
+        }
+
+        return rv;
+    }
+
+    [[nodiscard]] VkFence create_fence(vkpong::vulkan_device* const device,
+        bool set_signaled)
+    {
+        VkFenceCreateInfo fence_info{};
+        fence_info.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+        if (set_signaled)
+        {
+            fence_info.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+        }
+
+        VkFence rv;
+        if (vkCreateFence(device->logical, &fence_info, nullptr, &rv) !=
+            VK_SUCCESS)
+        {
+            throw std::runtime_error{"failed to create fence"};
+        }
+
+        return rv;
+    }
 } // namespace
 
 vkpong::swap_chain_support
@@ -134,7 +170,109 @@ vkpong::query_swap_chain_support(VkPhysicalDevice device, VkSurfaceKHR surface)
     return rv;
 }
 
-vkpong::vulkan_swap_chain::~vulkan_swap_chain() { cleanup(); }
+vkpong::vulkan_swap_chain::vulkan_swap_chain(GLFWwindow* window,
+    vulkan_context* context,
+    vulkan_device* device)
+    : window_{window}
+    , context_{context}
+    , device_{device}
+    , image_available_{create_semaphore(device)}
+    , render_finished_{create_semaphore(device)}
+    , in_flight_{create_fence(device, true)}
+{
+    create_chain_and_images();
+
+    vkGetDeviceQueue(device_->logical,
+        device_->graphics_family,
+        0,
+        &graphics_queue_);
+
+    vkGetDeviceQueue(device_->logical,
+        device_->present_family,
+        0,
+        &present_queue_);
+}
+
+vkpong::vulkan_swap_chain::~vulkan_swap_chain()
+{
+    vkDestroyFence(device_->logical, in_flight_, nullptr);
+    vkDestroySemaphore(device_->logical, render_finished_, nullptr);
+    vkDestroySemaphore(device_->logical, image_available_, nullptr);
+
+    cleanup();
+}
+
+bool vkpong::vulkan_swap_chain::acquire_next_image(uint32_t& image_index)
+{
+    constexpr auto timeout{std::numeric_limits<uint64_t>::max()};
+    vkWaitForFences(device_->logical, 1, &in_flight_, VK_TRUE, UINT64_MAX);
+
+    VkResult result{vkAcquireNextImageKHR(device_->logical,
+        chain,
+        timeout,
+        image_available_,
+        VK_NULL_HANDLE,
+        &image_index)};
+    if (result == VK_ERROR_OUT_OF_DATE_KHR)
+    {
+        recreate();
+        return false;
+    }
+    else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR)
+    {
+        throw std::runtime_error{"failed to acquire swap chain image"};
+    }
+
+    vkResetFences(device_->logical, 1, &in_flight_);
+    return true;
+}
+
+void vkpong::vulkan_swap_chain::submit_command_buffer(
+    VkCommandBuffer const* const command_buffer,
+    uint32_t const image_index)
+{
+    std::array const wait_semaphores{image_available_};
+    std::array<VkPipelineStageFlags, 1> const wait_stages{
+        VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
+    std::array const signal_semaphores{render_finished_};
+
+    VkSubmitInfo submit_info{};
+    submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    submit_info.waitSemaphoreCount = 1;
+    submit_info.pWaitSemaphores = wait_semaphores.data();
+    submit_info.pWaitDstStageMask = wait_stages.data();
+    submit_info.commandBufferCount = 1;
+    submit_info.pCommandBuffers = command_buffer;
+    submit_info.signalSemaphoreCount = 1;
+    submit_info.pSignalSemaphores = signal_semaphores.data();
+
+    if (vkQueueSubmit(graphics_queue_, 1, &submit_info, in_flight_) !=
+        VK_SUCCESS)
+    {
+        throw std::runtime_error("failed to submit draw command buffer!");
+    }
+
+    std::array swapchains{chain};
+    VkPresentInfoKHR present_info{};
+    present_info.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+    present_info.waitSemaphoreCount = 1;
+    present_info.pWaitSemaphores = signal_semaphores.data();
+    present_info.swapchainCount = 1;
+    present_info.pSwapchains = swapchains.data();
+    present_info.pImageIndices = &image_index;
+
+    VkResult result{vkQueuePresentKHR(present_queue_, &present_info)};
+    if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR)
+    {
+        // todo-jk
+        // framebuffer_resized = false;
+        recreate();
+    }
+    else if (result != VK_SUCCESS)
+    {
+        throw std::runtime_error{"failed to present swap chain image!"};
+    }
+}
 
 void vkpong::vulkan_swap_chain::recreate()
 {
@@ -244,18 +382,4 @@ void vkpong::vulkan_swap_chain::cleanup()
     }
 
     vkDestroySwapchainKHR(device_->logical, chain, nullptr);
-}
-
-std::unique_ptr<vkpong::vulkan_swap_chain> vkpong::create_swap_chain(
-    GLFWwindow* const window,
-    vulkan_context* const context,
-    vulkan_device* const device)
-{
-    auto rv{std::make_unique<vulkan_swap_chain>()};
-    rv->window_ = window;
-    rv->context_ = context;
-    rv->device_ = device;
-    rv->create_chain_and_images();
-
-    return rv;
 }
