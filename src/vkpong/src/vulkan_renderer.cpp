@@ -65,6 +65,8 @@ vkpong::vulkan_renderer::vulkan_renderer(
 
 vkpong::vulkan_renderer::~vulkan_renderer()
 {
+    vkDeviceWaitIdle(device_->logical);
+
     vkDestroyCommandPool(device_->logical, command_pool_, nullptr);
 }
 
