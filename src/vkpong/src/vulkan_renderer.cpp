@@ -102,7 +102,7 @@ void vkpong::vulkan_renderer::record_command_buffer(uint32_t const image_index)
     begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
     vkBeginCommandBuffer(command_buffers_[current_frame_], &begin_info);
 
-    VkImageMemoryBarrier const bimage_memory_barrier{
+    VkImageMemoryBarrier bimage_memory_barrier{
         .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
         .dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
         .oldLayout = VK_IMAGE_LAYOUT_UNDEFINED,
@@ -131,12 +131,14 @@ void vkpong::vulkan_renderer::record_command_buffer(uint32_t const image_index)
     constexpr VkClearValue clear_value{{{0.0f, 4.0f, 0.0f, 1.0f}}};
     VkRenderingAttachmentInfoKHR const color_attachment_info{
         .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR,
-        .imageView = swap_chain_->image_view(image_index),
-        .imageLayout = VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL_KHR,
+        .imageView = swap_chain_->intermediate_view(),
+        .imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+        .resolveMode = VK_RESOLVE_MODE_AVERAGE_BIT,
+        .resolveImageView = swap_chain_->image_view(image_index),
+        .resolveImageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
         .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
         .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
-        .clearValue = clear_value,
-    };
+        .clearValue = clear_value};
 
     VkRenderingInfoKHR const render_info{
         .sType = VK_STRUCTURE_TYPE_RENDERING_INFO_KHR,

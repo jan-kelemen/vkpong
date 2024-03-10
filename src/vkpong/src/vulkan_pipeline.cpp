@@ -128,9 +128,10 @@ vkpong::create_pipeline(vulkan_device* device, vulkan_swap_chain* swap_chain)
     VkPipelineMultisampleStateCreateInfo multisampling{};
     multisampling.sType =
         VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
-    multisampling.sampleShadingEnable = VK_FALSE;
-    multisampling.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
-    // TODO-JK: enable anti-aliasing
+    multisampling.sampleShadingEnable = VK_TRUE;
+    multisampling.minSampleShading = .2f;
+    multisampling.rasterizationSamples = VK_SAMPLE_COUNT_8_BIT;
+    // TODO-JK: do anti-aliasing settings properly
 
     // color blend state
     VkPipelineColorBlendAttachmentState color_blend_attachment{};
