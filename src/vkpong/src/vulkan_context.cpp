@@ -171,7 +171,10 @@ vkpong::create_context(GLFWwindow* window, bool setup_validation_layers)
         throw std::runtime_error{"failed to create instance"};
     }
 
-    rv->debug_messenger = create_debug_messenger(rv->instance);
+    if (has_debug_utils_extension)
+    {
+        rv->debug_messenger = create_debug_messenger(rv->instance);
+    }
 
     if (glfwCreateWindowSurface(rv->instance, window, nullptr, &rv->surface) !=
         VK_SUCCESS)
