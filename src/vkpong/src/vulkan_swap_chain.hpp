@@ -38,8 +38,12 @@ namespace vkpong
     public: // Destruction
         ~vulkan_swap_chain();
 
-    private:
+    public: // Interface
+        void recreate();
+
+    private: // Helpers
         void create_chain_and_images();
+        void cleanup();
 
     private:
         GLFWwindow* window_{};

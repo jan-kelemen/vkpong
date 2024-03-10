@@ -134,14 +134,22 @@ vkpong::query_swap_chain_support(VkPhysicalDevice device, VkSurfaceKHR surface)
     return rv;
 }
 
-vkpong::vulkan_swap_chain::~vulkan_swap_chain()
+vkpong::vulkan_swap_chain::~vulkan_swap_chain() { cleanup(); }
+
+void vkpong::vulkan_swap_chain::recreate()
 {
-    for (size_t i{}; i != images_.size(); ++i)
+    int width{};
+    int height{};
+    glfwGetFramebufferSize(window_, &width, &height);
+    while (width == 0 || height == 0)
     {
-        vkDestroyImageView(device_->logical, image_views_[i], nullptr);
+        glfwGetFramebufferSize(window_, &width, &height);
+        glfwWaitEvents();
     }
 
-    vkDestroySwapchainKHR(device_->logical, chain, nullptr);
+    vkDeviceWaitIdle(device_->logical);
+    cleanup();
+    create_chain_and_images();
 }
 
 void vkpong::vulkan_swap_chain::create_chain_and_images()
@@ -226,6 +234,16 @@ void vkpong::vulkan_swap_chain::create_chain_and_images()
             VK_IMAGE_ASPECT_COLOR_BIT,
             1);
     }
+}
+
+void vkpong::vulkan_swap_chain::cleanup()
+{
+    for (size_t i{}; i != images_.size(); ++i)
+    {
+        vkDestroyImageView(device_->logical, image_views_[i], nullptr);
+    }
+
+    vkDestroySwapchainKHR(device_->logical, chain, nullptr);
 }
 
 std::unique_ptr<vkpong::vulkan_swap_chain> vkpong::create_swap_chain(

@@ -121,15 +121,24 @@ void vkpong::vulkan_renderer::draw()
 {
     constexpr auto timeout{std::numeric_limits<uint64_t>::max()};
     vkWaitForFences(device_->logical, 1, &in_flight_, VK_TRUE, UINT64_MAX);
-    vkResetFences(device_->logical, 1, &in_flight_);
 
     uint32_t image_index{};
-    vkAcquireNextImageKHR(device_->logical,
+    VkResult result{vkAcquireNextImageKHR(device_->logical,
         swap_chain_->chain,
         timeout,
         image_available_,
         VK_NULL_HANDLE,
-        &image_index);
+        &image_index)};
+    if (result == VK_ERROR_OUT_OF_DATE_KHR)
+    {
+        swap_chain_->recreate();
+        return;
+    }
+    else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR)
+    {
+        throw std::runtime_error{"failed to acquire swap chain image"};
+    }
+    vkResetFences(device_->logical, 1, &in_flight_);
 
     vkResetCommandBuffer(command_buffer_, 0);
     record_command_buffer(image_index);
@@ -164,7 +173,17 @@ void vkpong::vulkan_renderer::draw()
     present_info.pSwapchains = swapchains.data();
     present_info.pImageIndices = &image_index;
 
-    vkQueuePresentKHR(present_queue_, &present_info);
+    result = vkQueuePresentKHR(present_queue_, &present_info);
+    if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR)
+    {
+        // todo-jk
+        // framebuffer_resized = false;
+        swap_chain_->recreate();
+    }
+    else if (result != VK_SUCCESS)
+    {
+        throw std::runtime_error{"failed to present swap chain image!"};
+    }
 }
 
 void vkpong::vulkan_renderer::record_command_buffer(uint32_t const image_index)
