@@ -191,6 +191,9 @@ vkpong::vulkan_swap_chain::vulkan_swap_chain(GLFWwindow* window,
         device_->present_family,
         0,
         &present_queue_);
+
+    glfwSetWindowUserPointer(window_, this);
+    glfwSetFramebufferSizeCallback(window_, framebuffer_resize_callback);
 }
 
 vkpong::vulkan_swap_chain::~vulkan_swap_chain()
@@ -262,10 +265,10 @@ void vkpong::vulkan_swap_chain::submit_command_buffer(
     present_info.pImageIndices = &image_index;
 
     VkResult result{vkQueuePresentKHR(present_queue_, &present_info)};
-    if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR)
+    if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR ||
+        framebuffer_resized_)
     {
-        // todo-jk
-        // framebuffer_resized = false;
+        framebuffer_resized_ = false;
         recreate();
     }
     else if (result != VK_SUCCESS)
@@ -288,6 +291,15 @@ void vkpong::vulkan_swap_chain::recreate()
     vkDeviceWaitIdle(device_->logical);
     cleanup();
     create_chain_and_images();
+}
+
+void vkpong::vulkan_swap_chain::framebuffer_resize_callback(GLFWwindow* window,
+    [[maybe_unused]] int width,
+    [[maybe_unused]] int height)
+{
+    auto* const swap_chain{
+        reinterpret_cast<vulkan_swap_chain*>(glfwGetWindowUserPointer(window))};
+    swap_chain->framebuffer_resized_ = true;
 }
 
 void vkpong::vulkan_swap_chain::create_chain_and_images()

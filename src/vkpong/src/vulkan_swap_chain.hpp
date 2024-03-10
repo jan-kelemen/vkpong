@@ -63,6 +63,9 @@ namespace vkpong
         void cleanup();
         void recreate();
 
+        static void
+        framebuffer_resize_callback(GLFWwindow* window, int width, int height);
+
     private:
         GLFWwindow* window_{};
         vulkan_context* context_{};
@@ -72,6 +75,8 @@ namespace vkpong
         VkFence in_flight_{};
         VkQueue graphics_queue_{};
         VkQueue present_queue_{};
+
+        bool framebuffer_resized_{};
 
         friend std::unique_ptr<vulkan_swap_chain> create_swap_chain(GLFWwindow*,
             vulkan_context* context,
