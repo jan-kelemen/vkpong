@@ -16,6 +16,16 @@ namespace vkpong
 
 namespace vkpong
 {
+    struct [[nodiscard]] swap_chain_support
+    {
+        VkSurfaceCapabilitiesKHR capabilities{};
+        std::vector<VkSurfaceFormatKHR> surface_formats;
+        std::vector<VkPresentModeKHR> present_modes;
+    };
+
+    swap_chain_support query_swap_chain_support(VkPhysicalDevice device,
+        VkSurfaceKHR surface);
+
     class [[nodiscard]] vulkan_swap_chain final
     {
     public:
@@ -29,6 +39,11 @@ namespace vkpong
         ~vulkan_swap_chain();
 
     private:
+        void create_chain_and_images();
+
+    private:
+        GLFWwindow* window_{};
+        vulkan_context* context_{};
         vulkan_device* device_{};
 
         friend std::unique_ptr<vulkan_swap_chain> create_swap_chain(GLFWwindow*,

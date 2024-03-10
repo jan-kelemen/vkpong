@@ -1,6 +1,7 @@
 #include <vulkan_device.hpp>
 
 #include <vulkan_context.hpp>
+#include <vulkan_swap_chain.hpp>
 
 #include <algorithm>
 #include <array>
@@ -73,46 +74,6 @@ namespace
         return indices;
     }
 
-    vkpong::swap_chain_support query_swap_chain_support(VkPhysicalDevice device,
-        VkSurfaceKHR surface)
-    {
-        vkpong::swap_chain_support rv;
-
-        vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device,
-            surface,
-            &rv.capabilities);
-
-        uint32_t format_count{};
-        vkGetPhysicalDeviceSurfaceFormatsKHR(device,
-            surface,
-            &format_count,
-            nullptr);
-        if (format_count != 0)
-        {
-            rv.surface_formats.resize(format_count);
-            vkGetPhysicalDeviceSurfaceFormatsKHR(device,
-                surface,
-                &format_count,
-                rv.surface_formats.data());
-        }
-
-        uint32_t present_count{};
-        vkGetPhysicalDeviceSurfacePresentModesKHR(device,
-            surface,
-            &present_count,
-            nullptr);
-        if (present_count != 0)
-        {
-            rv.present_modes.resize(present_count);
-            vkGetPhysicalDeviceSurfacePresentModesKHR(device,
-                surface,
-                &present_count,
-                rv.present_modes.data());
-        }
-
-        return rv;
-    }
-
     [[nodiscard]] bool extensions_supported(VkPhysicalDevice device)
     {
         uint32_t count{};
@@ -137,8 +98,7 @@ namespace
 
     [[nodiscard]] bool is_device_suitable(VkPhysicalDevice device,
         VkSurfaceKHR surface,
-        queue_family_indices& indices,
-        vkpong::swap_chain_support& swap_chain_support)
+        queue_family_indices& indices)
     {
         if (!extensions_supported(device))
         {
@@ -153,7 +113,7 @@ namespace
             return false;
         }
 
-        auto swap_chain{query_swap_chain_support(device, surface)};
+        auto swap_chain{vkpong::query_swap_chain_support(device, surface)};
         bool const swap_chain_adequate = {!swap_chain.surface_formats.empty() &&
             !swap_chain.present_modes.empty()};
         if (!swap_chain_adequate)
@@ -171,7 +131,6 @@ namespace
         }
 
         indices = std::move(families);
-        swap_chain_support = std::move(swap_chain);
 
         return true;
     }
@@ -193,14 +152,9 @@ std::unique_ptr<vkpong::vulkan_device> vkpong::create_device(
     vkEnumeratePhysicalDevices(context->instance, &count, devices.data());
 
     queue_family_indices device_indices;
-    swap_chain_support swap_chain;
     auto const device_it{std::ranges::find_if(devices,
-        [context, &device_indices, &swap_chain](auto const& device) mutable
-        {
-            return is_device_suitable(device,
-                context->surface,
-                device_indices,
-                swap_chain);
+        [context, &device_indices](auto const& device) mutable {
+            return is_device_suitable(device, context->surface, device_indices);
         })};
     if (device_it == devices.cend())
     {
@@ -211,7 +165,6 @@ std::unique_ptr<vkpong::vulkan_device> vkpong::create_device(
     rv->physical = *device_it;
     rv->graphics_family = device_indices.graphics_family.value_or(0);
     rv->present_family = device_indices.present_family.value_or(0);
-    rv->swap_chain_details = std::move(swap_chain);
 
     float const priority{1.0f};
     std::set<uint32_t> const unique_families{rv->graphics_family,

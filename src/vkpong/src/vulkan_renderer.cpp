@@ -117,8 +117,6 @@ vkpong::vulkan_renderer::~vulkan_renderer()
     vkDestroyCommandPool(device_->logical, command_pool_, nullptr);
 }
 
-#include <iostream>
-
 void vkpong::vulkan_renderer::draw()
 {
     constexpr auto timeout{std::numeric_limits<uint64_t>::max()};
@@ -166,8 +164,7 @@ void vkpong::vulkan_renderer::draw()
     present_info.pSwapchains = swapchains.data();
     present_info.pImageIndices = &image_index;
 
-    std::cout << "present: "
-              << vkQueuePresentKHR(present_queue_, &present_info);
+    vkQueuePresentKHR(present_queue_, &present_info);
 }
 
 void vkpong::vulkan_renderer::record_command_buffer(uint32_t const image_index)

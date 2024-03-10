@@ -94,6 +94,46 @@ namespace
 
 } // namespace
 
+vkpong::swap_chain_support
+vkpong::query_swap_chain_support(VkPhysicalDevice device, VkSurfaceKHR surface)
+{
+    vkpong::swap_chain_support rv;
+
+    vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device,
+        surface,
+        &rv.capabilities);
+
+    uint32_t format_count{};
+    vkGetPhysicalDeviceSurfaceFormatsKHR(device,
+        surface,
+        &format_count,
+        nullptr);
+    if (format_count != 0)
+    {
+        rv.surface_formats.resize(format_count);
+        vkGetPhysicalDeviceSurfaceFormatsKHR(device,
+            surface,
+            &format_count,
+            rv.surface_formats.data());
+    }
+
+    uint32_t present_count{};
+    vkGetPhysicalDeviceSurfacePresentModesKHR(device,
+        surface,
+        &present_count,
+        nullptr);
+    if (present_count != 0)
+    {
+        rv.present_modes.resize(present_count);
+        vkGetPhysicalDeviceSurfacePresentModesKHR(device,
+            surface,
+            &present_count,
+            rv.present_modes.data());
+    }
+
+    return rv;
+}
+
 vkpong::vulkan_swap_chain::~vulkan_swap_chain()
 {
     for (size_t i{}; i != images_.size(); ++i)
@@ -104,21 +144,18 @@ vkpong::vulkan_swap_chain::~vulkan_swap_chain()
     vkDestroySwapchainKHR(device_->logical, chain, nullptr);
 }
 
-std::unique_ptr<vkpong::vulkan_swap_chain> vkpong::create_swap_chain(
-    GLFWwindow* const window,
-    vulkan_context* const context,
-    vulkan_device* const device)
+void vkpong::vulkan_swap_chain::create_chain_and_images()
 {
-    auto const& swap_details{device->swap_chain_details};
+    auto swap_details{
+        query_swap_chain_support(device_->physical, context_->surface)};
 
     VkPresentModeKHR const present_mode{
         choose_swap_present_mode(swap_details.present_modes)};
     VkSurfaceFormatKHR const surface_format{
         choose_swap_surface_format(swap_details.surface_formats)};
 
-    auto rv{std::make_unique<vulkan_swap_chain>()};
-    rv->image_format_ = surface_format.format;
-    rv->extent_ = choose_swap_extent(window, swap_details.capabilities);
+    image_format_ = surface_format.format;
+    extent_ = choose_swap_extent(window_, swap_details.capabilities);
 
     uint32_t image_count{swap_details.capabilities.minImageCount + 1};
     if (swap_details.capabilities.maxImageCount > 0)
@@ -129,11 +166,11 @@ std::unique_ptr<vkpong::vulkan_swap_chain> vkpong::create_swap_chain(
 
     VkSwapchainCreateInfoKHR create_info{};
     create_info.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
-    create_info.surface = context->surface;
+    create_info.surface = context_->surface;
     create_info.minImageCount = image_count;
     create_info.imageFormat = surface_format.format;
     create_info.imageColorSpace = surface_format.colorSpace;
-    create_info.imageExtent = rv->extent_;
+    create_info.imageExtent = extent_;
     create_info.imageArrayLayers = 1;
     create_info.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
     create_info.preTransform = swap_details.capabilities.currentTransform;
@@ -142,9 +179,9 @@ std::unique_ptr<vkpong::vulkan_swap_chain> vkpong::create_swap_chain(
     create_info.clipped = VK_TRUE;
     create_info.oldSwapchain = VK_NULL_HANDLE;
 
-    std::array const queue_family_indices{device->graphics_family,
-        device->present_family};
-    if (device->graphics_family != device->present_family)
+    std::array const queue_family_indices{device_->graphics_family,
+        device_->present_family};
+    if (device_->graphics_family != device_->present_family)
     {
         create_info.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
         create_info.queueFamilyIndexCount = 2;
@@ -157,40 +194,50 @@ std::unique_ptr<vkpong::vulkan_swap_chain> vkpong::create_swap_chain(
         create_info.pQueueFamilyIndices = nullptr;
     }
 
-    if (vkCreateSwapchainKHR(device->logical,
-            &create_info,
-            nullptr,
-            &rv->chain) != VK_SUCCESS)
+    if (vkCreateSwapchainKHR(device_->logical, &create_info, nullptr, &chain) !=
+        VK_SUCCESS)
     {
         throw std::runtime_error{"failed to create swap chain!"};
     }
-    rv->device_ = device;
 
-    if (vkGetSwapchainImagesKHR(device->logical,
-            rv->chain,
+    if (vkGetSwapchainImagesKHR(device_->logical,
+            chain,
             &image_count,
             nullptr) != VK_SUCCESS)
     {
         throw std::runtime_error{"failed to get swap chain images!"};
     }
-    rv->images_.resize(image_count);
-    if (vkGetSwapchainImagesKHR(device->logical,
-            rv->chain,
+
+    images_.resize(image_count);
+    if (vkGetSwapchainImagesKHR(device_->logical,
+            chain,
             &image_count,
-            rv->images_.data()) != VK_SUCCESS)
+            images_.data()) != VK_SUCCESS)
     {
         throw std::runtime_error{"failed to get swap chain images!"};
     }
 
-    rv->image_views_.resize(image_count);
+    image_views_.resize(image_count);
     for (size_t i{}; i != image_count; ++i)
     {
-        rv->image_views_[i] = create_image_view(device->logical,
-            rv->images_[i],
-            rv->image_format_,
+        image_views_[i] = create_image_view(device_->logical,
+            images_[i],
+            image_format_,
             VK_IMAGE_ASPECT_COLOR_BIT,
             1);
     }
+}
+
+std::unique_ptr<vkpong::vulkan_swap_chain> vkpong::create_swap_chain(
+    GLFWwindow* const window,
+    vulkan_context* const context,
+    vulkan_device* const device)
+{
+    auto rv{std::make_unique<vulkan_swap_chain>()};
+    rv->window_ = window;
+    rv->context_ = context;
+    rv->device_ = device;
+    rv->create_chain_and_images();
 
     return rv;
 }

@@ -13,13 +13,6 @@ namespace vkpong
 
 namespace vkpong
 {
-    struct [[nodiscard]] swap_chain_support
-    {
-        VkSurfaceCapabilitiesKHR capabilities{};
-        std::vector<VkSurfaceFormatKHR> surface_formats;
-        std::vector<VkPresentModeKHR> present_modes;
-    };
-
     class [[nodiscard]] vulkan_device final
     {
     public:
@@ -28,7 +21,6 @@ namespace vkpong
 
         uint32_t graphics_family{};
         uint32_t present_family{};
-        swap_chain_support swap_chain_details;
 
     public: // Destruction
         ~vulkan_device();
