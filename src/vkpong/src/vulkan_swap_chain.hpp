@@ -28,12 +28,8 @@ namespace vkpong
 
     class [[nodiscard]] vulkan_swap_chain final
     {
-    public:
-        VkFormat image_format_{};
-        VkSwapchainKHR chain{};
-        VkExtent2D extent_{};
-        std::vector<VkImage> images_;
-        std::vector<VkImageView> image_views_;
+    public: // Constants
+        static constexpr int max_frames_in_flight{2};
 
     public: // Construction
         vulkan_swap_chain(GLFWwindow* window,
@@ -48,9 +44,20 @@ namespace vkpong
         ~vulkan_swap_chain();
 
     public: // Interface
-        [[nodiscard]] bool acquire_next_image(uint32_t& image_index);
+        [[nodiscard]] constexpr VkExtent2D extent() const;
+
+        [[nodiscard]] constexpr VkFormat image_format() const;
+
+        [[nodiscard]] constexpr VkImage image(uint32_t const image_index) const;
+
+        [[nodiscard]] constexpr VkImageView image_view(
+            uint32_t const image_index) const;
+
+        [[nodiscard]] bool acquire_next_image(uint32_t current_frame,
+            uint32_t& image_index);
 
         void submit_command_buffer(VkCommandBuffer const* command_buffer,
+            uint32_t current_frame,
             uint32_t image_index);
 
     public: // Operators
@@ -67,25 +74,67 @@ namespace vkpong
         framebuffer_resize_callback(GLFWwindow* window, int width, int height);
 
     private:
+        struct [[nodiscard]] image_sync final
+        {
+        public: // Data
+            VkSemaphore image_available{};
+            VkSemaphore render_finished{};
+            VkFence in_flight{};
+
+        public: // Construction
+            image_sync(vkpong::vulkan_device* const device);
+
+            image_sync(image_sync const&) = delete;
+            image_sync(image_sync&&) noexcept;
+
+        public: // Destruction
+            ~image_sync();
+
+        public: // Operators
+            image_sync& operator=(image_sync const&) = delete;
+            image_sync& operator=(image_sync&&) noexcept = delete;
+
+        private: // Data
+            vulkan_device* device_{};
+        };
+
         GLFWwindow* window_{};
         vulkan_context* context_{};
         vulkan_device* device_{};
-        VkSemaphore image_available_{};
-        VkSemaphore render_finished_{};
-        VkFence in_flight_{};
+        VkFormat image_format_{};
+        VkExtent2D extent_{};
+        VkSwapchainKHR chain{};
+        std::vector<VkImage> images_;
+        std::vector<VkImageView> image_views_;
+        std::vector<image_sync> image_syncs_{};
         VkQueue graphics_queue_{};
         VkQueue present_queue_{};
 
         bool framebuffer_resized_{};
-
-        friend std::unique_ptr<vulkan_swap_chain> create_swap_chain(GLFWwindow*,
-            vulkan_context* context,
-            vulkan_device* device);
     };
 
-    std::unique_ptr<vulkan_swap_chain> create_swap_chain(GLFWwindow* window,
-        vulkan_context* context,
-        vulkan_device* device);
 } // namespace vkpong
+
+constexpr VkExtent2D vkpong::vulkan_swap_chain::extent() const
+{
+    return extent_;
+}
+
+constexpr VkFormat vkpong::vulkan_swap_chain::image_format() const
+{
+    return image_format_;
+}
+
+constexpr VkImage vkpong::vulkan_swap_chain::image(
+    uint32_t const image_index) const
+{
+    return images_[image_index];
+}
+
+constexpr VkImageView vkpong::vulkan_swap_chain::image_view(
+    uint32_t const image_index) const
+{
+    return image_views_[image_index];
+}
 
 #endif // !VKPONG_VULKAN_SWAP_CHAIN_INCLUDED

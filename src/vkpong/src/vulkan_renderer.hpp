@@ -4,6 +4,7 @@
 #include <vulkan/vulkan_core.h>
 
 #include <memory>
+#include <vector>
 
 namespace vkpong
 {
@@ -47,7 +48,9 @@ namespace vkpong
         std::unique_ptr<vulkan_swap_chain> swap_chain_;
         std::unique_ptr<vulkan_pipeline> pipeline_;
         VkCommandPool command_pool_{};
-        VkCommandBuffer command_buffer_{};
+        std::vector<VkCommandBuffer> command_buffers_{};
+
+        uint32_t current_frame_{};
     };
 } // namespace vkpong
 

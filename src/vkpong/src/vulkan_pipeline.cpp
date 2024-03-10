@@ -174,11 +174,12 @@ vkpong::create_pipeline(vulkan_device* device, vulkan_swap_chain* swap_chain)
         throw std::runtime_error{"failed to create pipeline layout!"};
     }
 
+    VkFormat const image_format{swap_chain->image_format()};
     VkPipelineRenderingCreateInfoKHR rendering_create_info{};
     rendering_create_info.sType =
         VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO_KHR;
     rendering_create_info.colorAttachmentCount = 1;
-    rendering_create_info.pColorAttachmentFormats = &swap_chain->image_format_;
+    rendering_create_info.pColorAttachmentFormats = &image_format;
 
     VkGraphicsPipelineCreateInfo create_info{};
     create_info.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
