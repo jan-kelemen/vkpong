@@ -279,6 +279,11 @@ vkpong::vulkan_swap_chain::~vulkan_swap_chain()
 
 // Interface
 
+bool vkpong::vulkan_swap_chain::is_multisampled() const
+{
+    return device_->max_msaa_samples_ != VK_SAMPLE_COUNT_1_BIT;
+}
+
 bool vkpong::vulkan_swap_chain::acquire_next_image(uint32_t const current_frame,
     uint32_t& image_index)
 {
@@ -466,32 +471,38 @@ void vkpong::vulkan_swap_chain::create_chain_and_images()
             1);
     }
 
-    // color image
-    create_image(device_->physical,
-        device_->logical,
-        extent_.width,
-        extent_.height,
-        1,
-        VK_SAMPLE_COUNT_8_BIT,
-        image_format_,
-        VK_IMAGE_TILING_OPTIMAL,
-        VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT |
-            VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
-        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-        color_image_,
-        color_image_memory_);
-    color_image_view_ = create_image_view(device_->logical,
-        color_image_,
-        image_format_,
-        VK_IMAGE_ASPECT_COLOR_BIT,
-        1);
+    if (is_multisampled())
+    {
+        // color image
+        create_image(device_->physical,
+            device_->logical,
+            extent_.width,
+            extent_.height,
+            1,
+            device_->max_msaa_samples_,
+            image_format_,
+            VK_IMAGE_TILING_OPTIMAL,
+            VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT |
+                VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+            VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+            color_image_,
+            color_image_memory_);
+        color_image_view_ = create_image_view(device_->logical,
+            color_image_,
+            image_format_,
+            VK_IMAGE_ASPECT_COLOR_BIT,
+            1);
+    }
 }
 
 void vkpong::vulkan_swap_chain::cleanup()
 {
-    vkDestroyImageView(device_->logical, color_image_view_, nullptr);
-    vkDestroyImage(device_->logical, color_image_, nullptr);
-    vkFreeMemory(device_->logical, color_image_memory_, nullptr);
+    if (is_multisampled())
+    {
+        vkDestroyImageView(device_->logical, color_image_view_, nullptr);
+        vkDestroyImage(device_->logical, color_image_, nullptr);
+        vkFreeMemory(device_->logical, color_image_memory_, nullptr);
+    }
 
     for (size_t i{}; i != images_.size(); ++i)
     {

@@ -53,7 +53,9 @@ namespace vkpong
         [[nodiscard]] constexpr VkImageView image_view(
             uint32_t const image_index) const;
 
-        [[nodiscard]] constexpr VkImageView intermediate_view() const;
+        [[nodiscard]] bool is_multisampled() const;
+
+        [[nodiscard]] constexpr VkImageView intermediate_image_view() const;
 
         [[nodiscard]] bool acquire_next_image(uint32_t current_frame,
             uint32_t& image_index);
@@ -143,7 +145,7 @@ constexpr VkImageView vkpong::vulkan_swap_chain::image_view(
     return image_views_[image_index];
 }
 
-constexpr VkImageView vkpong::vulkan_swap_chain::intermediate_view() const
+constexpr VkImageView vkpong::vulkan_swap_chain::intermediate_image_view() const
 {
     return color_image_view_;
 }

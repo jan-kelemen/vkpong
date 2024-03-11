@@ -22,6 +22,8 @@ namespace vkpong
         uint32_t graphics_family{};
         uint32_t present_family{};
 
+        VkSampleCountFlagBits max_msaa_samples_{VK_SAMPLE_COUNT_1_BIT};
+
     public: // Destruction
         ~vulkan_device();
     };

@@ -129,16 +129,26 @@ void vkpong::vulkan_renderer::record_command_buffer(uint32_t const image_index)
     );
 
     constexpr VkClearValue clear_value{{{0.0f, 4.0f, 0.0f, 1.0f}}};
-    VkRenderingAttachmentInfoKHR const color_attachment_info{
+    VkRenderingAttachmentInfoKHR color_attachment_info{
         .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR,
-        .imageView = swap_chain_->intermediate_view(),
         .imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-        .resolveMode = VK_RESOLVE_MODE_AVERAGE_BIT,
-        .resolveImageView = swap_chain_->image_view(image_index),
-        .resolveImageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
         .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
         .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
         .clearValue = clear_value};
+    if (swap_chain_->is_multisampled())
+    {
+        color_attachment_info.imageView =
+            swap_chain_->intermediate_image_view();
+        color_attachment_info.resolveMode = VK_RESOLVE_MODE_AVERAGE_BIT;
+        color_attachment_info.resolveImageView =
+            swap_chain_->image_view(image_index);
+        color_attachment_info.resolveImageLayout =
+            VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+    }
+    else
+    {
+        color_attachment_info.imageView = swap_chain_->image_view(image_index);
+    }
 
     VkRenderingInfoKHR const render_info{
         .sType = VK_STRUCTURE_TYPE_RENDERING_INFO_KHR,

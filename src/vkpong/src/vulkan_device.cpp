@@ -134,6 +134,30 @@ namespace
 
         return true;
     }
+
+    [[nodiscard]] VkSampleCountFlagBits max_usable_sample_count(
+        VkPhysicalDevice device)
+    {
+        VkPhysicalDeviceProperties properties;
+        vkGetPhysicalDeviceProperties(device, &properties);
+
+        VkSampleCountFlags const counts =
+            properties.limits.framebufferColorSampleCounts &
+            properties.limits.framebufferDepthSampleCounts;
+        for (auto count : {VK_SAMPLE_COUNT_64_BIT,
+                 VK_SAMPLE_COUNT_32_BIT,
+                 VK_SAMPLE_COUNT_16_BIT,
+                 VK_SAMPLE_COUNT_8_BIT,
+                 VK_SAMPLE_COUNT_4_BIT,
+                 VK_SAMPLE_COUNT_2_BIT})
+        {
+            if (counts & count)
+            {
+                return count;
+            }
+        }
+        return VK_SAMPLE_COUNT_1_BIT;
+    }
 } // namespace
 
 vkpong::vulkan_device::~vulkan_device() { vkDestroyDevice(logical, nullptr); }
@@ -165,6 +189,7 @@ std::unique_ptr<vkpong::vulkan_device> vkpong::create_device(
     rv->physical = *device_it;
     rv->graphics_family = device_indices.graphics_family.value_or(0);
     rv->present_family = device_indices.present_family.value_or(0);
+    rv->max_msaa_samples_ = max_usable_sample_count(*device_it);
 
     float const priority{1.0f};
     std::set<uint32_t> const unique_families{rv->graphics_family,
