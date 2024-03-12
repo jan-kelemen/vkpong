@@ -94,9 +94,17 @@ vkpong::create_pipeline(vulkan_device* device, vulkan_swap_chain* swap_chain)
         frag_shader_stage_info};
 
     // vertex input
+    auto const& binding_descriptions{vertex::binding_description()};
+    auto const& attribute_descriptions{vertex::attribute_descriptions()};
     VkPipelineVertexInputStateCreateInfo vertex_input_info{};
     vertex_input_info.sType =
         VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+    vertex_input_info.vertexBindingDescriptionCount = 1;
+    vertex_input_info.pVertexBindingDescriptions = &binding_descriptions;
+    vertex_input_info.vertexAttributeDescriptionCount =
+        static_cast<uint32_t>(attribute_descriptions.size());
+    vertex_input_info.pVertexAttributeDescriptions =
+        attribute_descriptions.data();
 
     // input assembly
     VkPipelineInputAssemblyStateCreateInfo input_assembly{};

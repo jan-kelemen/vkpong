@@ -47,8 +47,12 @@ namespace vkpong
         std::unique_ptr<vulkan_device> device_;
         std::unique_ptr<vulkan_swap_chain> swap_chain_;
         std::unique_ptr<vulkan_pipeline> pipeline_;
+
         VkCommandPool command_pool_{};
         std::vector<VkCommandBuffer> command_buffers_{};
+
+        VkBuffer vertex_buffer_{};
+        VkDeviceMemory vertex_buffer_memory_{};
 
         uint32_t current_frame_{};
     };

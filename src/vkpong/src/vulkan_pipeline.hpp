@@ -5,14 +5,47 @@
 
 #include <vulkan/vulkan_core.h>
 
+#include <array>
 #include <memory>
+#include <span>
+#include <vector>
 
 namespace
 {
-    struct [[nodiscard]] push_consts
+    struct [[nodiscard]] push_consts final
     {
-        glm::fvec4 color[3];
+        glm::fvec4 color[6];
     };
+
+    struct [[nodiscard]] vertex final
+    {
+        glm::fvec2 position;
+
+        [[nodiscard]] static constexpr auto binding_description()
+        {
+            return VkVertexInputBindingDescription{.binding = 0,
+                .stride = sizeof(vertex),
+                .inputRate = VK_VERTEX_INPUT_RATE_VERTEX};
+        }
+
+        [[nodiscard]] static constexpr auto attribute_descriptions()
+        {
+            constexpr std::array descriptions{
+                VkVertexInputAttributeDescription{.location = 0,
+                    .binding = 0,
+                    .format = VK_FORMAT_R32G32_SFLOAT,
+                    .offset = offsetof(vertex, position)}};
+
+            return descriptions;
+        }
+    };
+
+    std::vector<vertex> const vertices = {{{-.5f, -.5f}},
+        {{.5f, -.5f}},
+        {{.5f, .5f}},
+        {{.5f, .5f}},
+        {{-.5f, .5f}},
+        {{-.5f, -.5f}}};
 } // namespace
 
 namespace vkpong

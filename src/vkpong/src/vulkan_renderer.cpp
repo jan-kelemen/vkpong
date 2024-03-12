@@ -4,6 +4,7 @@
 #include <vulkan_device.hpp>
 #include <vulkan_pipeline.hpp>
 #include <vulkan_swap_chain.hpp>
+#include <vulkan_utility.hpp>
 
 #include <array>
 #include <cassert>
@@ -51,6 +52,23 @@ namespace
             throw std::runtime_error{"failed to allocate command buffers!"};
         }
     }
+
+    std::pair<VkBuffer, VkDeviceMemory> create_vertex_buffer(
+        vkpong::vulkan_device* const device)
+    {
+        VkBufferCreateInfo buffer_info{};
+        buffer_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+        buffer_info.size = sizeof(vertices[0]) * vertices.size();
+        buffer_info.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+        buffer_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+        return vkpong::create_buffer(device->physical,
+            device->logical,
+            buffer_info.size,
+            buffer_info.usage,
+            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+                VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+    }
 } // namespace
 
 vkpong::vulkan_renderer::vulkan_renderer(
@@ -69,11 +87,17 @@ vkpong::vulkan_renderer::vulkan_renderer(
         command_pool_,
         vulkan_swap_chain::max_frames_in_flight,
         command_buffers_);
+
+    std::tie(vertex_buffer_, vertex_buffer_memory_) =
+        create_vertex_buffer(device_.get());
 }
 
 vkpong::vulkan_renderer::~vulkan_renderer()
 {
     vkDeviceWaitIdle(device_->logical);
+
+    vkDestroyBuffer(device_->logical, vertex_buffer_, nullptr);
+    vkFreeMemory(device_->logical, vertex_buffer_memory_, nullptr);
 
     vkDestroyCommandPool(device_->logical, command_pool_, nullptr);
 }
@@ -164,6 +188,24 @@ void vkpong::vulkan_renderer::record_command_buffer(uint32_t const image_index)
         VK_PIPELINE_BIND_POINT_GRAPHICS,
         pipeline_->pipeline());
 
+    void* data{};
+    vkMapMemory(device_->logical,
+        vertex_buffer_memory_,
+        0,
+        sizeof(vertices[0]) * vertices.size(),
+        0,
+        &data);
+    memcpy(data, vertices.data(), sizeof(vertices[0]) * vertices.size());
+    vkUnmapMemory(device_->logical, vertex_buffer_memory_);
+
+    VkBuffer vertexBuffers[] = {vertex_buffer_};
+    VkDeviceSize offsets[] = {0};
+    vkCmdBindVertexBuffers(command_buffers_[current_frame_],
+        0,
+        1,
+        vertexBuffers,
+        offsets);
+
     VkExtent2D const extent{swap_chain_->extent()};
     VkViewport viewport{};
     viewport.x = 0.0f;
@@ -183,6 +225,9 @@ void vkpong::vulkan_renderer::record_command_buffer(uint32_t const image_index)
     push_values.color[0].r = 0.5f;
     push_values.color[1].g = 0.5f;
     push_values.color[2].b = 0.5f;
+    push_values.color[3].r = 0.5f;
+    push_values.color[4].g = 0.5f;
+    push_values.color[5].b = 0.5f;
 
     vkCmdPushConstants(command_buffers_[current_frame_],
         pipeline_->layout(),
@@ -191,7 +236,11 @@ void vkpong::vulkan_renderer::record_command_buffer(uint32_t const image_index)
         sizeof(push_consts),
         &push_values);
 
-    vkCmdDraw(command_buffers_[current_frame_], 3, 1, 0, 0);
+    vkCmdDraw(command_buffers_[current_frame_],
+        static_cast<uint32_t>(vertices.size()),
+        1,
+        0,
+        0);
 
     vkCmdEndRendering(command_buffers_[current_frame_]);
 

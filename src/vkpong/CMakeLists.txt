@@ -14,6 +14,8 @@ target_sources(vkpong
         ${CMAKE_CURRENT_SOURCE_DIR}/src/vulkan_renderer.hpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/vulkan_swap_chain.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/vulkan_swap_chain.hpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/vulkan_utility.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/vulkan_utility.hpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/window.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/window.hpp
     PRIVATE
@@ -61,6 +63,7 @@ source_group("Header Files"
         ${CMAKE_CURRENT_SOURCE_DIR}/src/vulkan_pipeline.hpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/vulkan_renderer.hpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/vulkan_swap_chain.hpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/vulkan_utility.hpp
 )
 source_group("Source Files"
     FILES
@@ -70,6 +73,7 @@ source_group("Source Files"
         ${CMAKE_CURRENT_SOURCE_DIR}/src/vulkan_pipeline.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/vulkan_renderer.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/vulkan_swap_chain.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/vulkan_utility.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/window.cpp
 )
 
