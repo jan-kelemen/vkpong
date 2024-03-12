@@ -162,7 +162,7 @@ void vkpong::vulkan_renderer::record_command_buffer(uint32_t const image_index)
 
     vkCmdBindPipeline(command_buffers_[current_frame_],
         VK_PIPELINE_BIND_POINT_GRAPHICS,
-        pipeline_->pipeline_);
+        pipeline_->pipeline());
 
     VkExtent2D const extent{swap_chain_->extent()};
     VkViewport viewport{};
@@ -178,6 +178,18 @@ void vkpong::vulkan_renderer::record_command_buffer(uint32_t const image_index)
     scissor.offset = {0, 0};
     scissor.extent = extent;
     vkCmdSetScissor(command_buffers_[current_frame_], 0, 1, &scissor);
+
+    push_consts push_values{};
+    push_values.color[0].r = 0.5f;
+    push_values.color[1].g = 0.5f;
+    push_values.color[2].b = 0.5f;
+
+    vkCmdPushConstants(command_buffers_[current_frame_],
+        pipeline_->layout(),
+        VK_SHADER_STAGE_VERTEX_BIT,
+        0,
+        sizeof(push_consts),
+        &push_values);
 
     vkCmdDraw(command_buffers_[current_frame_], 3, 1, 0, 0);
 

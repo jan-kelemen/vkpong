@@ -148,6 +148,11 @@ vkpong::create_pipeline(vulkan_device* device, vulkan_swap_chain* swap_chain)
     color_blending.pAttachments = &color_blend_attachment;
     std::ranges::fill(color_blending.blendConstants, 0.0f);
 
+    VkPushConstantRange push_constant_range{};
+    push_constant_range.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+    push_constant_range.offset = 0;
+    push_constant_range.size = sizeof(push_consts);
+
     // TODO-JK: depth stencil
 
     // dynamic states
@@ -165,6 +170,8 @@ vkpong::create_pipeline(vulkan_device* device, vulkan_swap_chain* swap_chain)
     // pipeline layout
     VkPipelineLayoutCreateInfo pipeline_layout_info{};
     pipeline_layout_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+    pipeline_layout_info.pushConstantRangeCount = 1;
+    pipeline_layout_info.pPushConstantRanges = &push_constant_range;
 
     if (vkCreatePipelineLayout(device->logical,
             &pipeline_layout_info,

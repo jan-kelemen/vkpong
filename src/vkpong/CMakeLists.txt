@@ -47,6 +47,7 @@ target_include_directories(vkpong
 target_link_libraries(vkpong
     PRIVATE
         glfw
+        glm::glm
         vulkan-headers::vulkan-headers
         Vulkan::Loader
         project-options
