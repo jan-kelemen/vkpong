@@ -21,8 +21,7 @@ namespace vkpong
     public: // Construction
         vulkan_renderer(std::unique_ptr<vulkan_context> context,
             std::unique_ptr<vulkan_device> device,
-            std::unique_ptr<vulkan_swap_chain> swap_chain,
-            std::unique_ptr<vulkan_pipeline> pipeline);
+            std::unique_ptr<vulkan_swap_chain> swap_chain);
 
         vulkan_renderer(vulkan_renderer const&) = delete;
 
@@ -40,7 +39,8 @@ namespace vkpong
         vulkan_renderer& operator=(vulkan_renderer&&) noexcept = delete;
 
     private: // Helpers
-        void record_command_buffer(uint32_t image_index);
+        void record_command_buffer(VkCommandBuffer& command_buffer,
+            uint32_t image_index);
 
     private: // Data
         std::unique_ptr<vulkan_context> context_;
@@ -51,8 +51,8 @@ namespace vkpong
         VkCommandPool command_pool_{};
         std::vector<VkCommandBuffer> command_buffers_{};
 
-        VkBuffer vertex_buffer_{};
-        VkDeviceMemory vertex_buffer_memory_{};
+        VkBuffer buffer_{};
+        VkDeviceMemory buffer_memory_{};
 
         uint32_t current_frame_{};
     };

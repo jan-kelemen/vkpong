@@ -3,6 +3,7 @@
 #include <scope_exit.hpp>
 #include <vulkan_device.hpp>
 #include <vulkan_swap_chain.hpp>
+#include <vulkan_utility.hpp>
 
 #include <array>
 #include <filesystem>
@@ -102,7 +103,7 @@ vkpong::create_pipeline(vulkan_device* device, vulkan_swap_chain* swap_chain)
     vertex_input_info.vertexBindingDescriptionCount = 1;
     vertex_input_info.pVertexBindingDescriptions = &binding_descriptions;
     vertex_input_info.vertexAttributeDescriptionCount =
-        static_cast<uint32_t>(attribute_descriptions.size());
+        count_cast(attribute_descriptions.size());
     vertex_input_info.pVertexAttributeDescriptions =
         attribute_descriptions.data();
 
@@ -168,8 +169,7 @@ vkpong::create_pipeline(vulkan_device* device, vulkan_swap_chain* swap_chain)
         VK_DYNAMIC_STATE_SCISSOR};
     VkPipelineDynamicStateCreateInfo dynamic_state{};
     dynamic_state.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO,
-    dynamic_state.dynamicStateCount =
-        static_cast<uint32_t>(dynamic_states.size()),
+    dynamic_state.dynamicStateCount = count_cast(dynamic_states.size()),
     dynamic_state.pDynamicStates = dynamic_states.data();
 
     auto rv{std::make_unique<vulkan_pipeline>()};
@@ -205,7 +205,7 @@ vkpong::create_pipeline(vulkan_device* device, vulkan_swap_chain* swap_chain)
     create_info.pMultisampleState = &multisampling;
     create_info.pViewportState = &viewport_state;
     create_info.pDynamicState = &dynamic_state;
-    create_info.stageCount = static_cast<uint32_t>(shader_stages.size());
+    create_info.stageCount = count_cast(shader_stages.size());
     create_info.pStages = shader_stages.data();
     create_info.layout = rv->layout_;
 

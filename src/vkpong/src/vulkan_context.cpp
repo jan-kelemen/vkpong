@@ -1,4 +1,5 @@
 #include <vulkan_context.hpp>
+#include <vulkan_utility.hpp>
 
 #include <GLFW/glfw3.h>
 
@@ -145,7 +146,7 @@ vkpong::create_context(GLFWwindow* window, bool setup_validation_layers)
         if (check_validation_layer_support())
         {
             create_info.enabledLayerCount =
-                static_cast<uint32_t>(validation_layers.size());
+                count_cast(validation_layers.size());
             create_info.ppEnabledLayerNames = validation_layers.data();
 
             required_extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
@@ -161,8 +162,7 @@ vkpong::create_context(GLFWwindow* window, bool setup_validation_layers)
         }
     }
 
-    create_info.enabledExtensionCount =
-        static_cast<uint32_t>(required_extensions.size());
+    create_info.enabledExtensionCount = count_cast(required_extensions.size());
     create_info.ppEnabledExtensionNames = required_extensions.data();
 
     auto rv{std::make_unique<vulkan_context>()};

@@ -33,8 +33,8 @@ namespace
     }
 
     void create_command_buffers(vkpong::vulkan_device* const device,
-        VkCommandPool command_pool,
-        uint32_t count,
+        VkCommandPool const command_pool,
+        uint32_t const count,
         std::span<VkCommandBuffer> data_buffer)
     {
         assert(data_buffer.size() >= count);
@@ -53,13 +53,15 @@ namespace
         }
     }
 
-    std::pair<VkBuffer, VkDeviceMemory> create_vertex_buffer(
+    std::pair<VkBuffer, VkDeviceMemory> create_vertex_and_index_buffer(
         vkpong::vulkan_device* const device)
     {
         VkBufferCreateInfo buffer_info{};
         buffer_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-        buffer_info.size = sizeof(vertices[0]) * vertices.size();
-        buffer_info.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+        buffer_info.size = sizeof(vertices[0]) * vertices.size() +
+            sizeof(indices[0]) * indices.size();
+        buffer_info.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT |
+            VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
         buffer_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
         return vkpong::create_buffer(device->physical,
@@ -74,12 +76,11 @@ namespace
 vkpong::vulkan_renderer::vulkan_renderer(
     std::unique_ptr<vulkan_context> context,
     std::unique_ptr<vulkan_device> device,
-    std::unique_ptr<vulkan_swap_chain> swap_chain,
-    std::unique_ptr<vulkan_pipeline> pipeline)
+    std::unique_ptr<vulkan_swap_chain> swap_chain)
     : context_{std::move(context)}
     , device_{std::move(device)}
     , swap_chain_{std::move(swap_chain)}
-    , pipeline_{std::move(pipeline)}
+    , pipeline_{create_pipeline(device_.get(), swap_chain_.get())}
     , command_pool_{create_command_pool(device_.get())}
     , command_buffers_{vulkan_swap_chain::max_frames_in_flight}
 {
@@ -88,16 +89,16 @@ vkpong::vulkan_renderer::vulkan_renderer(
         vulkan_swap_chain::max_frames_in_flight,
         command_buffers_);
 
-    std::tie(vertex_buffer_, vertex_buffer_memory_) =
-        create_vertex_buffer(device_.get());
+    std::tie(buffer_, buffer_memory_) =
+        create_vertex_and_index_buffer(device_.get());
 }
 
 vkpong::vulkan_renderer::~vulkan_renderer()
 {
     vkDeviceWaitIdle(device_->logical);
 
-    vkDestroyBuffer(device_->logical, vertex_buffer_, nullptr);
-    vkFreeMemory(device_->logical, vertex_buffer_memory_, nullptr);
+    vkDestroyBuffer(device_->logical, buffer_, nullptr);
+    vkFreeMemory(device_->logical, buffer_memory_, nullptr);
 
     vkDestroyCommandPool(device_->logical, command_pool_, nullptr);
 }
@@ -110,21 +111,29 @@ void vkpong::vulkan_renderer::draw()
         return;
     }
 
-    vkResetCommandBuffer(command_buffers_[current_frame_], 0);
-    record_command_buffer(image_index);
+    auto& command_buffer{command_buffers_[current_frame_]};
 
-    swap_chain_->submit_command_buffer(&command_buffers_[current_frame_],
+    vkResetCommandBuffer(command_buffer, 0);
+
+    record_command_buffer(command_buffer, image_index);
+
+    swap_chain_->submit_command_buffer(&command_buffer,
         current_frame_,
         image_index);
     current_frame_ =
         (current_frame_ + 1) % vulkan_swap_chain::max_frames_in_flight;
 }
 
-void vkpong::vulkan_renderer::record_command_buffer(uint32_t const image_index)
+void vkpong::vulkan_renderer::record_command_buffer(
+    VkCommandBuffer& command_buffer,
+    uint32_t const image_index)
 {
     VkCommandBufferBeginInfo begin_info{};
     begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-    vkBeginCommandBuffer(command_buffers_[current_frame_], &begin_info);
+    if (vkBeginCommandBuffer(command_buffer, &begin_info) != VK_SUCCESS)
+    {
+        throw std::runtime_error{"unable to begin command buffer recording!"};
+    }
 
     VkImageMemoryBarrier bimage_memory_barrier{
         .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
@@ -140,25 +149,26 @@ void vkpong::vulkan_renderer::record_command_buffer(uint32_t const image_index)
             .layerCount = 1,
         }};
 
-    vkCmdPipelineBarrier(command_buffers_[current_frame_],
-        VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, // srcStageMask
-        VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, // dstStageMask
+    vkCmdPipelineBarrier(command_buffer,
+        VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+        VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
         0,
         0,
         nullptr,
         0,
         nullptr,
-        1, // imageMemoryBarrierCount
-        &bimage_memory_barrier // pImageMemoryBarriers
-    );
+        1,
+        &bimage_memory_barrier);
 
     constexpr VkClearValue clear_value{{{0.0f, 4.0f, 0.0f, 1.0f}}};
-    VkRenderingAttachmentInfoKHR color_attachment_info{
-        .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR,
-        .imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-        .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
-        .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
-        .clearValue = clear_value};
+    VkRenderingAttachmentInfoKHR color_attachment_info{};
+    color_attachment_info.sType =
+        VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR;
+    color_attachment_info.imageLayout =
+        VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+    color_attachment_info.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+    color_attachment_info.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+    color_attachment_info.clearValue = clear_value;
     if (swap_chain_->is_multisampled())
     {
         color_attachment_info.imageView =
@@ -182,29 +192,43 @@ void vkpong::vulkan_renderer::record_command_buffer(uint32_t const image_index)
         .pColorAttachments = &color_attachment_info,
     };
 
-    vkCmdBeginRendering(command_buffers_[current_frame_], &render_info);
+    vkCmdBeginRendering(command_buffer, &render_info);
 
-    vkCmdBindPipeline(command_buffers_[current_frame_],
+    vkCmdBindPipeline(command_buffer,
         VK_PIPELINE_BIND_POINT_GRAPHICS,
         pipeline_->pipeline());
 
     void* data{};
-    vkMapMemory(device_->logical,
-        vertex_buffer_memory_,
-        0,
-        sizeof(vertices[0]) * vertices.size(),
-        0,
-        &data);
-    memcpy(data, vertices.data(), sizeof(vertices[0]) * vertices.size());
-    vkUnmapMemory(device_->logical, vertex_buffer_memory_);
+    if (vkMapMemory(device_->logical,
+            buffer_memory_,
+            0,
+            sizeof(vertices[0]) * vertices.size(),
+            0,
+            &data) != VK_SUCCESS)
+    {
+        throw std::runtime_error{"unable to map buffer memory!"};
+    }
+    size_t const vertices_size{sizeof(vertices[0]) * vertices.size()};
+    memcpy(data, vertices.data(), vertices_size);
 
-    VkBuffer vertexBuffers[] = {vertex_buffer_};
-    VkDeviceSize offsets[] = {0};
-    vkCmdBindVertexBuffers(command_buffers_[current_frame_],
+    size_t const indices_size{sizeof(indices[0]) * indices.size()};
+    memcpy(reinterpret_cast<std::byte*>(data) + vertices_size,
+        indices.data(),
+        indices_size);
+    vkUnmapMemory(device_->logical, buffer_memory_);
+
+    std::array vertex_buffer_{buffer_};
+    std::array const offsets{VkDeviceSize{0}};
+    vkCmdBindVertexBuffers(command_buffer,
         0,
         1,
-        vertexBuffers,
-        offsets);
+        vertex_buffer_.data(),
+        offsets.data());
+
+    vkCmdBindIndexBuffer(command_buffer,
+        buffer_,
+        vertices_size,
+        VK_INDEX_TYPE_UINT16);
 
     VkExtent2D const extent{swap_chain_->extent()};
     VkViewport viewport{};
@@ -214,12 +238,12 @@ void vkpong::vulkan_renderer::record_command_buffer(uint32_t const image_index)
     viewport.height = static_cast<float>(extent.height);
     viewport.minDepth = 0.0f;
     viewport.maxDepth = 1.0f;
-    vkCmdSetViewport(command_buffers_[current_frame_], 0, 1, &viewport);
+    vkCmdSetViewport(command_buffer, 0, 1, &viewport);
 
     VkRect2D scissor{};
     scissor.offset = {0, 0};
     scissor.extent = extent;
-    vkCmdSetScissor(command_buffers_[current_frame_], 0, 1, &scissor);
+    vkCmdSetScissor(command_buffer, 0, 1, &scissor);
 
     push_consts push_values{};
     push_values.color[0].r = 0.5f;
@@ -229,20 +253,16 @@ void vkpong::vulkan_renderer::record_command_buffer(uint32_t const image_index)
     push_values.color[4].g = 0.5f;
     push_values.color[5].b = 0.5f;
 
-    vkCmdPushConstants(command_buffers_[current_frame_],
+    vkCmdPushConstants(command_buffer,
         pipeline_->layout(),
         VK_SHADER_STAGE_VERTEX_BIT,
         0,
         sizeof(push_consts),
         &push_values);
 
-    vkCmdDraw(command_buffers_[current_frame_],
-        static_cast<uint32_t>(vertices.size()),
-        1,
-        0,
-        0);
+    vkCmdDrawIndexed(command_buffer, count_cast(indices.size()), 1, 0, 0, 0);
 
-    vkCmdEndRendering(command_buffers_[current_frame_]);
+    vkCmdEndRendering(command_buffer);
 
     VkImageMemoryBarrier const image_memory_barrier{
         .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
@@ -258,17 +278,19 @@ void vkpong::vulkan_renderer::record_command_buffer(uint32_t const image_index)
             .layerCount = 1,
         }};
 
-    vkCmdPipelineBarrier(command_buffers_[current_frame_],
-        VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, // srcStageMask
-        VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, // dstStageMask
+    vkCmdPipelineBarrier(command_buffer,
+        VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+        VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
         0,
         0,
         nullptr,
         0,
         nullptr,
-        1, // imageMemoryBarrierCount
-        &image_memory_barrier // pImageMemoryBarriers
-    );
+        1,
+        &image_memory_barrier);
 
-    vkEndCommandBuffer(command_buffers_[current_frame_]);
+    if (vkEndCommandBuffer(command_buffer) != VK_SUCCESS)
+    {
+        throw std::runtime_error{"unable to end command buffer recording!"};
+    }
 }

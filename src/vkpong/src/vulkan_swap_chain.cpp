@@ -30,8 +30,8 @@ namespace
         VkImageCreateInfo image_info{};
         image_info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
         image_info.imageType = VK_IMAGE_TYPE_2D;
-        image_info.extent.width = static_cast<uint32_t>(width);
-        image_info.extent.height = static_cast<uint32_t>(height);
+        image_info.extent.width = width;
+        image_info.extent.height = height;
         image_info.extent.depth = 1;
         image_info.mipLevels = mip_levels;
         image_info.arrayLayers = 1;

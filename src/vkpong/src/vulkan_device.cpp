@@ -2,6 +2,7 @@
 
 #include <vulkan_context.hpp>
 #include <vulkan_swap_chain.hpp>
+#include <vulkan_utility.hpp>
 
 #include <algorithm>
 #include <array>
@@ -208,12 +209,10 @@ std::unique_ptr<vkpong::vulkan_device> vkpong::create_device(
 
     VkDeviceCreateInfo create_info{};
     create_info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-    create_info.queueCreateInfoCount =
-        static_cast<uint32_t>(queue_create_infos.size());
+    create_info.queueCreateInfoCount = count_cast(queue_create_infos.size());
     create_info.pQueueCreateInfos = queue_create_infos.data();
     create_info.enabledLayerCount = 0;
-    create_info.enabledExtensionCount =
-        static_cast<uint32_t>(device_extensions.size());
+    create_info.enabledExtensionCount = count_cast(device_extensions.size());
     create_info.ppEnabledExtensionNames = device_extensions.data();
     create_info.pEnabledFeatures = &device_features;
     create_info.pNext = &device_13_features;

@@ -40,12 +40,12 @@ namespace
         }
     };
 
-    std::vector<vertex> const vertices = {{{-.5f, -.5f}},
+    std::vector<vertex> const vertices{{{-.5f, -.5f}},
         {{.5f, -.5f}},
         {{.5f, .5f}},
-        {{.5f, .5f}},
-        {{-.5f, .5f}},
-        {{-.5f, -.5f}}};
+        {{-.5f, .5f}}};
+
+    std::vector<uint16_t> const indices{0, 1, 2, 2, 3, 0};
 } // namespace
 
 namespace vkpong
