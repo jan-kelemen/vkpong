@@ -59,7 +59,10 @@ namespace
 vkpong::vulkan_pipeline::~vulkan_pipeline()
 {
     vkDestroyPipeline(device_->logical, pipeline_, nullptr);
-    vkDestroyPipelineLayout(device_->logical, layout_, nullptr);
+    vkDestroyPipelineLayout(device_->logical, pipeline_layout_, nullptr);
+    vkDestroyDescriptorSetLayout(device_->logical,
+        descriptor_set_layout_,
+        nullptr);
 }
 
 std::unique_ptr<vkpong::vulkan_pipeline>
@@ -129,7 +132,7 @@ vkpong::create_pipeline(vulkan_device* device, vulkan_swap_chain* swap_chain)
     rasterizer.rasterizerDiscardEnable = VK_FALSE;
     rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
     rasterizer.cullMode = VK_CULL_MODE_BACK_BIT;
-    rasterizer.frontFace = VK_FRONT_FACE_CLOCKWISE;
+    rasterizer.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
     rasterizer.depthBiasEnable = VK_FALSE;
     rasterizer.lineWidth = 1.0f;
 
@@ -162,6 +165,28 @@ vkpong::create_pipeline(vulkan_device* device, vulkan_swap_chain* swap_chain)
     push_constant_range.offset = 0;
     push_constant_range.size = sizeof(push_consts);
 
+    VkDescriptorSetLayoutBinding ubo_layout_binding{};
+    ubo_layout_binding.binding = 0;
+    ubo_layout_binding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    ubo_layout_binding.descriptorCount = 1;
+    ubo_layout_binding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+
+    VkDescriptorSetLayoutCreateInfo layout_info{};
+    layout_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+    layout_info.bindingCount = 1;
+    layout_info.pBindings = &ubo_layout_binding;
+
+    auto rv{std::make_unique<vulkan_pipeline>()};
+    rv->device_ = device;
+
+    if (vkCreateDescriptorSetLayout(device->logical,
+            &layout_info,
+            nullptr,
+            &rv->descriptor_set_layout_) != VK_SUCCESS)
+    {
+        throw std::runtime_error{"failed to create descriptor set layout"};
+    }
+
     // TODO-JK: depth stencil
 
     // dynamic states
@@ -172,19 +197,18 @@ vkpong::create_pipeline(vulkan_device* device, vulkan_swap_chain* swap_chain)
     dynamic_state.dynamicStateCount = count_cast(dynamic_states.size()),
     dynamic_state.pDynamicStates = dynamic_states.data();
 
-    auto rv{std::make_unique<vulkan_pipeline>()};
-    rv->device_ = device;
-
     // pipeline layout
     VkPipelineLayoutCreateInfo pipeline_layout_info{};
     pipeline_layout_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
     pipeline_layout_info.pushConstantRangeCount = 1;
     pipeline_layout_info.pPushConstantRanges = &push_constant_range;
+    pipeline_layout_info.setLayoutCount = 1;
+    pipeline_layout_info.pSetLayouts = &rv->descriptor_set_layout_;
 
     if (vkCreatePipelineLayout(device->logical,
             &pipeline_layout_info,
             nullptr,
-            &rv->layout_) != VK_SUCCESS)
+            &rv->pipeline_layout_) != VK_SUCCESS)
     {
         throw std::runtime_error{"failed to create pipeline layout!"};
     }
@@ -207,7 +231,7 @@ vkpong::create_pipeline(vulkan_device* device, vulkan_swap_chain* swap_chain)
     create_info.pDynamicState = &dynamic_state;
     create_info.stageCount = count_cast(shader_stages.size());
     create_info.pStages = shader_stages.data();
-    create_info.layout = rv->layout_;
+    create_info.layout = rv->pipeline_layout_;
 
     create_info.pNext = &rendering_create_info;
     if (vkCreateGraphicsPipelines(device->logical,

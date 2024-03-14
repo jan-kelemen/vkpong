@@ -16,7 +16,7 @@ namespace vkpong
 
 namespace vkpong
 {
-    struct [[nodiscard]] swap_chain_support
+    struct [[nodiscard]] swap_chain_support final
     {
         VkSurfaceCapabilitiesKHR capabilities{};
         std::vector<VkSurfaceFormatKHR> surface_formats;

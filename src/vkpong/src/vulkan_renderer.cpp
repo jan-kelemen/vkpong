@@ -6,8 +6,13 @@
 #include <vulkan_swap_chain.hpp>
 #include <vulkan_utility.hpp>
 
+#define GLM_FORCE_RADIANS
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+
 #include <array>
 #include <cassert>
+#include <chrono>
 #include <limits>
 #include <span>
 #include <stdexcept>
@@ -71,6 +76,83 @@ namespace
             VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
                 VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
     }
+
+    VkDescriptorPool create_descriptor_pool(vkpong::vulkan_device* const device)
+    {
+        constexpr auto count{vkpong::count_cast(
+            vkpong::vulkan_swap_chain::max_frames_in_flight)};
+
+        VkDescriptorPoolSize uniform_buffer_pool_size{};
+        uniform_buffer_pool_size.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        uniform_buffer_pool_size.descriptorCount = count;
+
+        VkDescriptorPoolCreateInfo pool_info{};
+        pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+        pool_info.poolSizeCount = 1;
+        pool_info.pPoolSizes = &uniform_buffer_pool_size;
+        pool_info.maxSets = count;
+
+        VkDescriptorPool rv{};
+        if (vkCreateDescriptorPool(device->logical, &pool_info, nullptr, &rv) !=
+            VK_SUCCESS)
+        {
+            throw std::runtime_error{"failed to create descriptor pool!"};
+        }
+
+        return rv;
+    }
+
+    void create_descriptor_sets(vkpong::vulkan_device* const device,
+        VkDescriptorSetLayout const& layout,
+        VkDescriptorPool const& descriptor_pool,
+        std::span<VkDescriptorSet> descriptor_sets)
+    {
+        constexpr auto count{vkpong::count_cast(
+            vkpong::vulkan_swap_chain::max_frames_in_flight)};
+
+        assert(descriptor_sets.size() >= count);
+
+        std::vector<VkDescriptorSetLayout> layouts(count, layout);
+
+        VkDescriptorSetAllocateInfo alloc_info{};
+        alloc_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+        alloc_info.descriptorPool = descriptor_pool;
+        alloc_info.descriptorSetCount = count;
+        alloc_info.pSetLayouts = layouts.data();
+
+        if (vkAllocateDescriptorSets(device->logical,
+                &alloc_info,
+                descriptor_sets.data()) != VK_SUCCESS)
+        {
+            throw std::runtime_error("failed to allocate descriptor sets!");
+        }
+    }
+
+    void bind_descriptor_set(vkpong::vulkan_device* const device,
+        VkDescriptorSet const& descriptor_set,
+        VkBuffer const& buffer)
+    {
+        VkDescriptorBufferInfo buffer_info{};
+        buffer_info.buffer = buffer;
+        buffer_info.offset = 0;
+        buffer_info.range = VK_WHOLE_SIZE;
+
+        VkWriteDescriptorSet descriptor_write{};
+        descriptor_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        descriptor_write.dstSet = descriptor_set;
+        descriptor_write.dstBinding = 0;
+        descriptor_write.dstArrayElement = 0;
+        descriptor_write.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        descriptor_write.descriptorCount = 1;
+        descriptor_write.pBufferInfo = &buffer_info;
+
+        vkUpdateDescriptorSets(device->logical,
+            1,
+            &descriptor_write,
+            0,
+            nullptr);
+    }
+
 } // namespace
 
 vkpong::vulkan_renderer::vulkan_renderer(
@@ -83,6 +165,7 @@ vkpong::vulkan_renderer::vulkan_renderer(
     , pipeline_{create_pipeline(device_.get(), swap_chain_.get())}
     , command_pool_{create_command_pool(device_.get())}
     , command_buffers_{vulkan_swap_chain::max_frames_in_flight}
+    , descriptor_pool_{create_descriptor_pool(device_.get())}
 {
     create_command_buffers(device_.get(),
         command_pool_,
@@ -91,11 +174,28 @@ vkpong::vulkan_renderer::vulkan_renderer(
 
     std::tie(buffer_, buffer_memory_) =
         create_vertex_and_index_buffer(device_.get());
+
+    descriptor_sets_.resize(vulkan_swap_chain::max_frames_in_flight);
+    create_descriptor_sets(device_.get(),
+        pipeline_->descriptor_set_layout(),
+        descriptor_pool_,
+        descriptor_sets_);
+
+    for (int i{}; i != vulkan_swap_chain::max_frames_in_flight; ++i)
+    {
+        auto const& buffer{uniform_buffers_.emplace_back(device_.get(),
+            sizeof(uniform_buffer_object))};
+        bind_descriptor_set(device_.get(), descriptor_sets_[i], buffer.buffer);
+    }
 }
 
 vkpong::vulkan_renderer::~vulkan_renderer()
 {
     vkDeviceWaitIdle(device_->logical);
+
+    vkDestroyDescriptorPool(device_->logical, descriptor_pool_, nullptr);
+
+    uniform_buffers_.clear();
 
     vkDestroyBuffer(device_->logical, buffer_, nullptr);
     vkFreeMemory(device_->logical, buffer_memory_, nullptr);
@@ -112,10 +212,13 @@ void vkpong::vulkan_renderer::draw()
     }
 
     auto& command_buffer{command_buffers_[current_frame_]};
+    auto const& descriptor_set{descriptor_sets_[current_frame_]};
 
     vkResetCommandBuffer(command_buffer, 0);
 
-    record_command_buffer(command_buffer, image_index);
+    record_command_buffer(command_buffer, descriptor_set, image_index);
+
+    update_uniform_buffer(uniform_buffers_[current_frame_]);
 
     swap_chain_->submit_command_buffer(&command_buffer,
         current_frame_,
@@ -126,6 +229,7 @@ void vkpong::vulkan_renderer::draw()
 
 void vkpong::vulkan_renderer::record_command_buffer(
     VkCommandBuffer& command_buffer,
+    VkDescriptorSet const& descriptor_set,
     uint32_t const image_index)
 {
     VkCommandBufferBeginInfo begin_info{};
@@ -254,11 +358,20 @@ void vkpong::vulkan_renderer::record_command_buffer(
     push_values.color[5].b = 0.5f;
 
     vkCmdPushConstants(command_buffer,
-        pipeline_->layout(),
+        pipeline_->pipeline_layout(),
         VK_SHADER_STAGE_VERTEX_BIT,
         0,
         sizeof(push_consts),
         &push_values);
+
+    vkCmdBindDescriptorSets(command_buffer,
+        VK_PIPELINE_BIND_POINT_GRAPHICS,
+        pipeline_->pipeline_layout(),
+        0,
+        1,
+        &descriptor_set,
+        0,
+        nullptr);
 
     vkCmdDrawIndexed(command_buffer, count_cast(indices.size()), 1, 0, 0, 0);
 
@@ -292,5 +405,76 @@ void vkpong::vulkan_renderer::record_command_buffer(
     if (vkEndCommandBuffer(command_buffer) != VK_SUCCESS)
     {
         throw std::runtime_error{"unable to end command buffer recording!"};
+    }
+}
+
+void vkpong::vulkan_renderer::update_uniform_buffer(mapped_buffer& buffer)
+{
+    using namespace std::chrono;
+
+    static auto const start_time{high_resolution_clock::now()};
+
+    auto const current_time{high_resolution_clock::now()};
+    float const time =
+        duration<float, seconds::period>(current_time - start_time).count();
+
+    uniform_buffer_object ubo{};
+    ubo.model = glm::rotate(glm::mat4{1.0f},
+        time * glm::radians(90.0f),
+        glm::vec3{0.0f, 0.0f, 1.0f});
+
+    ubo.view = glm::lookAt(glm::vec3{2.0f, 2.0f, 2.0f},
+        glm::vec3{0.0f, 0.0f, 0.0f},
+        glm::vec3{0.0f, 0.0f, 1.0f});
+
+    ubo.projection = glm::perspective(glm::radians(45.0f),
+        static_cast<float>(swap_chain_->extent().width) /
+            static_cast<float>(swap_chain_->extent().height),
+        0.1f,
+        10.0f);
+
+    ubo.projection[1][1] *= -1;
+
+    memcpy(buffer.mapped_memory, &ubo, sizeof(uniform_buffer_object));
+}
+
+vkpong::vulkan_renderer::mapped_buffer::mapped_buffer(vulkan_device* device,
+    size_t size)
+    : device_{device}
+{
+    std::tie(buffer, device_memory) = create_buffer(device_->physical,
+        device_->logical,
+        size,
+        VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+            VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+
+    if (vkMapMemory(device_->logical,
+            device_memory,
+            0,
+            size,
+            0,
+            &mapped_memory) != VK_SUCCESS)
+    {
+        throw std::runtime_error{"unable to map memory!"};
+    }
+}
+
+vkpong::vulkan_renderer::mapped_buffer::mapped_buffer(
+    mapped_buffer&& other) noexcept
+    : device_{std::exchange(other.device_, nullptr)}
+    , buffer{std::exchange(other.buffer, {})}
+    , device_memory{std::exchange(other.device_memory, {})}
+    , mapped_memory{std::exchange(other.mapped_memory, {})}
+{
+}
+
+vkpong::vulkan_renderer::mapped_buffer::~mapped_buffer()
+{
+    if (device_memory != nullptr)
+    {
+        vkUnmapMemory(device_->logical, device_memory);
+        vkDestroyBuffer(device_->logical, buffer, nullptr);
+        vkFreeMemory(device_->logical, device_memory, nullptr);
     }
 }

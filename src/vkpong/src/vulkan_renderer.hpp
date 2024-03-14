@@ -38,9 +38,37 @@ namespace vkpong
 
         vulkan_renderer& operator=(vulkan_renderer&&) noexcept = delete;
 
+    private: // Types
+        struct [[nodiscard]] mapped_buffer final
+        {
+        public: // Data
+            VkBuffer buffer{};
+            VkDeviceMemory device_memory{};
+            void* mapped_memory{};
+
+        public: // Construction
+            mapped_buffer(vulkan_device* device, size_t size);
+
+            mapped_buffer(mapped_buffer const&) = delete;
+            mapped_buffer(mapped_buffer&& other) noexcept;
+
+        public: // Destruction
+            ~mapped_buffer();
+
+        public: // Operators
+            mapped_buffer& operator=(mapped_buffer const&) = delete;
+            mapped_buffer& operator=(mapped_buffer&& other) noexcept = delete;
+
+        private:
+            vulkan_device* device_;
+        };
+
     private: // Helpers
         void record_command_buffer(VkCommandBuffer& command_buffer,
+            VkDescriptorSet const& descriptor_set,
             uint32_t image_index);
+
+        void update_uniform_buffer(mapped_buffer& buffer);
 
     private: // Data
         std::unique_ptr<vulkan_context> context_;
@@ -53,6 +81,11 @@ namespace vkpong
 
         VkBuffer buffer_{};
         VkDeviceMemory buffer_memory_{};
+
+        std::vector<mapped_buffer> uniform_buffers_;
+
+        VkDescriptorPool descriptor_pool_{};
+        std::vector<VkDescriptorSet> descriptor_sets_;
 
         uint32_t current_frame_{};
     };

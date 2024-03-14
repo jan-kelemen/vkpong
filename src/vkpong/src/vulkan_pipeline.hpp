@@ -46,6 +46,13 @@ namespace
         {{-.5f, .5f}}};
 
     std::vector<uint16_t> const indices{0, 1, 2, 2, 3, 0};
+
+    struct [[nodiscard]] uniform_buffer_object final
+    {
+        glm::mat4 model;
+        glm::mat4 view;
+        glm::mat4 projection;
+    };
 } // namespace
 
 namespace vkpong
@@ -64,11 +71,15 @@ namespace vkpong
     public: // Interface
         [[nodiscard]] constexpr VkPipeline pipeline() const;
 
-        [[nodiscard]] constexpr VkPipelineLayout layout() const;
+        [[nodiscard]] constexpr VkPipelineLayout pipeline_layout() const;
+
+        [[nodiscard]] constexpr VkDescriptorSetLayout
+        descriptor_set_layout() const;
 
     private: // Data
         vulkan_device* device_{};
-        VkPipelineLayout layout_{};
+        VkDescriptorSetLayout descriptor_set_layout_{};
+        VkPipelineLayout pipeline_layout_{};
         VkPipeline pipeline_{};
 
         friend std::unique_ptr<vulkan_pipeline>
@@ -84,9 +95,15 @@ constexpr VkPipeline vkpong::vulkan_pipeline::pipeline() const
     return pipeline_;
 }
 
-constexpr VkPipelineLayout vkpong::vulkan_pipeline::layout() const
+constexpr VkPipelineLayout vkpong::vulkan_pipeline::pipeline_layout() const
 {
-    return layout_;
+    return pipeline_layout_;
+}
+
+constexpr VkDescriptorSetLayout
+vkpong::vulkan_pipeline::descriptor_set_layout() const
+{
+    return descriptor_set_layout_;
 }
 
 #endif // !VKPONG_VULKAN_PIPELINE_INCLUDED
