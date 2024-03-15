@@ -16,7 +16,7 @@ namespace vkpong
 
 namespace vkpong
 {
-    class [[nodiscard]] vulkan_renderer
+    class [[nodiscard]] vulkan_renderer final
     {
     public: // Construction
         vulkan_renderer(std::unique_ptr<vulkan_context> context,

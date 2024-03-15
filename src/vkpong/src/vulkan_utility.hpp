@@ -9,7 +9,7 @@
 namespace vkpong
 {
     template<typename T>
-    [[nodiscard]] constexpr uint32_t count_cast(T count)
+    [[nodiscard]] constexpr uint32_t count_cast(T const count)
     {
         assert(std::in_range<uint32_t>(count));
         return static_cast<uint32_t>(count);

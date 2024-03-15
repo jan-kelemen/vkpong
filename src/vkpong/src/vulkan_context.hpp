@@ -14,7 +14,7 @@ namespace vkpong
     {
     public:
         VkInstance instance{};
-        std::optional<VkDebugUtilsMessengerEXT> debug_messenger{};
+        std::optional<VkDebugUtilsMessengerEXT> debug_messenger;
         VkSurfaceKHR surface{};
 
     public: // Destruction

@@ -3,10 +3,11 @@
 
 #include <GLFW/glfw3.h>
 
+#include <spdlog/spdlog.h>
+
 #include <algorithm>
 #include <array>
 #include <cassert>
-#include <iostream>
 #include <string_view>
 #include <vector>
 
@@ -37,12 +38,33 @@ namespace
     }
 
     VKAPI_ATTR VkBool32 VKAPI_CALL debug_callback(
-        [[maybe_unused]] VkDebugUtilsMessageSeverityFlagBitsEXT severity,
-        [[maybe_unused]] VkDebugUtilsMessageTypeFlagsEXT type,
-        VkDebugUtilsMessengerCallbackDataEXT const* callback_data,
-        [[maybe_unused]] void* user_data)
+        VkDebugUtilsMessageSeverityFlagBitsEXT const severity,
+        [[maybe_unused]] VkDebugUtilsMessageTypeFlagsEXT const type,
+        VkDebugUtilsMessengerCallbackDataEXT const* const callback_data,
+        [[maybe_unused]] void* const user_data)
     {
-        std::cerr << "validation layer: " << callback_data->pMessage << '\n';
+        switch (severity)
+        {
+        case VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT:
+            spdlog::debug(callback_data->pMessage);
+            break;
+        case VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT:
+            spdlog::info(callback_data->pMessage);
+            break;
+        case VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT:
+            spdlog::warn(callback_data->pMessage);
+            break;
+        case VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT:
+            spdlog::error(callback_data->pMessage);
+            break;
+        default:
+            spdlog::error("Unrecognized severity {}. {}",
+                static_cast<std::underlying_type_t<
+                    VkDebugUtilsMessageSeverityFlagBitsEXT>>(severity),
+                callback_data->pMessage);
+            break;
+        }
+
         return VK_FALSE;
     }
 
@@ -60,10 +82,10 @@ namespace
         info.pfnUserCallback = debug_callback;
     }
 
-    VkResult create_debug_utils_messenger_ext(VkInstance instance,
-        VkDebugUtilsMessengerCreateInfoEXT const* pCreateInfo,
-        VkAllocationCallbacks const* pAllocator,
-        VkDebugUtilsMessengerEXT* pDebugMessenger)
+    VkResult create_debug_utils_messenger_ext(VkInstance const instance,
+        VkDebugUtilsMessengerCreateInfoEXT const* const create_info,
+        VkAllocationCallbacks const* const allocator,
+        VkDebugUtilsMessengerEXT* const debug_messenger)
     {
         // NOLINTNEXTLINE
         auto const func{reinterpret_cast<PFN_vkCreateDebugUtilsMessengerEXT>(
@@ -71,15 +93,15 @@ namespace
 
         if (func != nullptr)
         {
-            return func(instance, pCreateInfo, pAllocator, pDebugMessenger);
+            return func(instance, create_info, allocator, debug_messenger);
         }
 
         return VK_ERROR_EXTENSION_NOT_PRESENT;
     }
 
-    void destroy_debug_utils_messenger_ext(VkInstance instance,
-        VkDebugUtilsMessengerEXT debugMessenger,
-        VkAllocationCallbacks const* pAllocator)
+    void destroy_debug_utils_messenger_ext(VkInstance const instance,
+        VkDebugUtilsMessengerEXT const debug_messenger,
+        VkAllocationCallbacks const* allocator)
     {
         // NOLINTNEXTLINE
         auto const func{reinterpret_cast<PFN_vkDestroyDebugUtilsMessengerEXT>(
@@ -88,20 +110,20 @@ namespace
 
         if (func != nullptr)
         {
-            func(instance, debugMessenger, pAllocator);
+            func(instance, debug_messenger, allocator);
         }
     }
 
-    VkDebugUtilsMessengerEXT create_debug_messenger(VkInstance instance)
+    VkDebugUtilsMessengerEXT create_debug_messenger(VkInstance const instance)
     {
-        VkDebugUtilsMessengerCreateInfoEXT create_info;
+        VkDebugUtilsMessengerCreateInfoEXT create_info{};
         populate_debug_messenger_create_info(create_info);
 
-        VkDebugUtilsMessengerEXT rv;
+        VkDebugUtilsMessengerEXT rv{};
         if (create_debug_utils_messenger_ext(instance,
                 &create_info,
                 nullptr,
-                &rv))
+                &rv) != VK_SUCCESS)
         {
             throw std::runtime_error{"failed to create debug messenger!"};
         }
@@ -120,8 +142,9 @@ vkpong::vulkan_context::~vulkan_context()
     vkDestroyInstance(instance, nullptr);
 }
 
-std::unique_ptr<vkpong::vulkan_context>
-vkpong::create_context(GLFWwindow* window, bool setup_validation_layers)
+std::unique_ptr<vkpong::vulkan_context> vkpong::create_context(
+    GLFWwindow* const window,
+    bool const setup_validation_layers)
 {
     VkApplicationInfo app_info{};
     app_info.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
@@ -157,7 +180,7 @@ vkpong::create_context(GLFWwindow* window, bool setup_validation_layers)
         }
         else
         {
-            std::cerr << "Validation layers requested but not available!\n";
+            spdlog::warn("Validation layers requested but not available!");
             has_debug_utils_extension = false;
         }
     }
@@ -166,7 +189,7 @@ vkpong::create_context(GLFWwindow* window, bool setup_validation_layers)
     create_info.ppEnabledExtensionNames = required_extensions.data();
 
     auto rv{std::make_unique<vulkan_context>()};
-    if (vkCreateInstance(&create_info, nullptr, &rv->instance))
+    if (vkCreateInstance(&create_info, nullptr, &rv->instance) != VK_SUCCESS)
     {
         throw std::runtime_error{"failed to create instance"};
     }

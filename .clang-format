@@ -10,8 +10,10 @@ AlignOperands: 'false'
 AlignTrailingComments: 'false'
 AllowAllArgumentsOnNextLine: 'false'
 AllowAllParametersOfDeclarationOnNextLine: 'false'
+AllowBreakBeforeNoexceptSpecifier: OnlyWithParen
 AllowShortBlocksOnASingleLine: 'false'
 AllowShortCaseLabelsOnASingleLine: 'false'
+AllowShortCompoundRequirementOnASingleLine: 'true'
 AllowShortFunctionsOnASingleLine: All
 AllowShortIfStatementsOnASingleLine: 'false'
 AllowShortLoopsOnASingleLine: 'false'
@@ -21,6 +23,7 @@ AlwaysBreakTemplateDeclarations: 'true'
 BinPackArguments: 'false'
 BinPackParameters: 'false'
 BitFieldColonSpacing: Both
+BreakAdjacentStringLiterals: 'true'
 BreakBeforeBinaryOperators: None
 BreakBeforeBraces: Allman
 BreakBeforeConceptDeclarations: 'true'

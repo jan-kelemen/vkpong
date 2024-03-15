@@ -26,10 +26,7 @@ namespace vkpong
     public: // Interface
         void loop(std::function<void()> callback);
 
-        [[nodiscard]] GLFWwindow* handle() const noexcept
-        {
-            return impl_.get();
-        }
+        [[nodiscard]] GLFWwindow* handle() const noexcept;
 
     public: // Operators
         window& operator=(window const&) = delete;
@@ -43,5 +40,10 @@ namespace vkpong
         std::unique_ptr<GLFWwindow, void (*)(GLFWwindow*)> impl_;
     };
 } // namespace vkpong
+
+inline GLFWwindow* vkpong::window::handle() const noexcept
+{
+    return impl_.get();
+}
 
 #endif

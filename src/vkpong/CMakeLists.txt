@@ -52,6 +52,7 @@ target_link_libraries(vkpong
         glm::glm
         vulkan-headers::vulkan-headers
         Vulkan::Loader
+        spdlog::spdlog
         project-options
 )
 
