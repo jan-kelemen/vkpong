@@ -256,14 +256,16 @@ void vkpong::vulkan_pipeline_builder::add_shader(
 }
 
 void vkpong::vulkan_pipeline_builder::add_vertex_input(
-    VkVertexInputBindingDescription const binding_description,
+    std::span<VkVertexInputBindingDescription const> binding_descriptions,
     std::span<VkVertexInputAttributeDescription const> attribute_descriptions)
 {
-    vertex_input_binding_.reserve(vertex_input_binding_.size() + 1);
+    vertex_input_binding_.reserve(
+        vertex_input_binding_.size() + binding_descriptions.size());
     vertex_input_attributes_.reserve(
         vertex_input_attributes_.size() + attribute_descriptions.size());
 
-    vertex_input_binding_.emplace_back(binding_description);
+    vertex_input_binding_.insert_range(vertex_input_binding_.cend(),
+        binding_descriptions);
     vertex_input_attributes_.insert_range(vertex_input_attributes_.cend(),
         attribute_descriptions);
 }

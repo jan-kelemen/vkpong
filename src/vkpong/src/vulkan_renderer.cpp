@@ -24,15 +24,27 @@ namespace
         glm::fvec4 color[6];
     };
 
+    struct [[nodiscard]] instance_data final
+    {
+        glm::fvec2 offset;
+    };
+
     struct [[nodiscard]] vertex final
     {
         glm::fvec2 position;
 
         [[nodiscard]] static constexpr auto binding_description()
         {
-            return VkVertexInputBindingDescription{.binding = 0,
-                .stride = sizeof(vertex),
-                .inputRate = VK_VERTEX_INPUT_RATE_VERTEX};
+            constexpr std::array descriptions{
+                VkVertexInputBindingDescription{.binding = 0,
+                    .stride = sizeof(vertex),
+                    .inputRate = VK_VERTEX_INPUT_RATE_VERTEX},
+                VkVertexInputBindingDescription{.binding = 1,
+                    .stride = sizeof(instance_data),
+                    .inputRate = VK_VERTEX_INPUT_RATE_INSTANCE},
+            };
+
+            return descriptions;
         }
 
         [[nodiscard]] static constexpr auto attribute_descriptions()
@@ -41,7 +53,11 @@ namespace
                 VkVertexInputAttributeDescription{.location = 0,
                     .binding = 0,
                     .format = VK_FORMAT_R32G32_SFLOAT,
-                    .offset = offsetof(vertex, position)}};
+                    .offset = offsetof(vertex, position)},
+                VkVertexInputAttributeDescription{.location = 1,
+                    .binding = 1,
+                    .format = VK_FORMAT_R32G32_SFLOAT,
+                    .offset = offsetof(instance_data, offset)}};
 
             return descriptions;
         }
@@ -112,6 +128,23 @@ namespace
             sizeof(indices[0]) * indices.size();
         buffer_info.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT |
             VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
+        buffer_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+        return vkpong::create_buffer(device->physical(),
+            device->logical(),
+            buffer_info.size,
+            buffer_info.usage,
+            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+                VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+    }
+
+    std::pair<VkBuffer, VkDeviceMemory> create_instance_buffer(
+        vkpong::vulkan_device* const device)
+    {
+        VkBufferCreateInfo buffer_info{};
+        buffer_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+        buffer_info.size = sizeof(instance_data) * 2;
+        buffer_info.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
         buffer_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
         return vkpong::create_buffer(device->physical(),
@@ -263,7 +296,7 @@ vkpong::vulkan_renderer::vulkan_renderer(
         vulkan_swap_chain::max_frames_in_flight,
         command_buffers_);
 
-    std::tie(buffer_, buffer_memory_) =
+    std::tie(vertex_and_index_buffer_, vertex_and_index_memory_) =
         create_vertex_and_index_buffer(device_.get());
 
     descriptor_sets_.resize(vulkan_swap_chain::max_frames_in_flight);
@@ -274,7 +307,12 @@ vkpong::vulkan_renderer::vulkan_renderer(
 
     for (int i{}; i != vulkan_swap_chain::max_frames_in_flight; ++i)
     {
+        instance_buffers_.emplace_back(device_.get(),
+            VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+            sizeof(instance_data) * 2);
+
         auto const& buffer{uniform_buffers_.emplace_back(device_.get(),
+            VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
             sizeof(uniform_buffer_object))};
         bind_descriptor_set(device_.get(), descriptor_sets_[i], buffer.buffer);
     }
@@ -291,8 +329,10 @@ vkpong::vulkan_renderer::~vulkan_renderer()
 
     uniform_buffers_.clear();
 
-    vkDestroyBuffer(device_->logical(), buffer_, nullptr);
-    vkFreeMemory(device_->logical(), buffer_memory_, nullptr);
+    instance_buffers_.clear();
+
+    vkDestroyBuffer(device_->logical(), vertex_and_index_buffer_, nullptr);
+    vkFreeMemory(device_->logical(), vertex_and_index_memory_, nullptr);
 
     vkDestroyCommandPool(device_->logical(), command_pool_, nullptr);
 }
@@ -313,6 +353,7 @@ void vkpong::vulkan_renderer::draw()
     record_command_buffer(command_buffer, descriptor_set, image_index);
 
     update_uniform_buffer(uniform_buffers_[current_frame_]);
+    update_instance_buffer(instance_buffers_[current_frame_]);
 
     swap_chain_->submit_command_buffer(&command_buffer,
         current_frame_,
@@ -398,7 +439,7 @@ void vkpong::vulkan_renderer::record_command_buffer(
 
     void* data{};
     if (vkMapMemory(device_->logical(),
-            buffer_memory_,
+            vertex_and_index_memory_,
             0,
             sizeof(vertices[0]) * vertices.size(),
             0,
@@ -413,18 +454,24 @@ void vkpong::vulkan_renderer::record_command_buffer(
     memcpy(reinterpret_cast<std::byte*>(data) + vertices_size,
         indices.data(),
         indices_size);
-    vkUnmapMemory(device_->logical(), buffer_memory_);
+    vkUnmapMemory(device_->logical(), vertex_and_index_memory_);
 
-    std::array vertex_buffer_{buffer_};
+    std::array vertex_buffer{vertex_and_index_buffer_};
+    std::array instance_buffer{instance_buffers_[current_frame_].buffer};
     std::array const offsets{VkDeviceSize{0}};
     vkCmdBindVertexBuffers(command_buffer,
         0,
         1,
-        vertex_buffer_.data(),
+        vertex_buffer.data(),
+        offsets.data());
+    vkCmdBindVertexBuffers(command_buffer,
+        1,
+        1,
+        instance_buffer.data(),
         offsets.data());
 
     vkCmdBindIndexBuffer(command_buffer,
-        buffer_,
+        vertex_and_index_buffer_,
         vertices_size,
         VK_INDEX_TYPE_UINT16);
 
@@ -467,7 +514,7 @@ void vkpong::vulkan_renderer::record_command_buffer(
         0,
         nullptr);
 
-    vkCmdDrawIndexed(command_buffer, count_cast(indices.size()), 1, 0, 0, 0);
+    vkCmdDrawIndexed(command_buffer, count_cast(indices.size()), 2, 0, 0, 0);
 
     vkCmdEndRendering(command_buffer);
 
@@ -504,42 +551,36 @@ void vkpong::vulkan_renderer::record_command_buffer(
 
 void vkpong::vulkan_renderer::update_uniform_buffer(mapped_buffer& buffer)
 {
-    using namespace std::chrono;
-
-    static auto const start_time{high_resolution_clock::now()};
-
-    auto const current_time{high_resolution_clock::now()};
-    float const time =
-        duration<float, seconds::period>(current_time - start_time).count();
-
     uniform_buffer_object ubo{};
-    ubo.model = glm::rotate(glm::mat4{1.0f},
-        time * glm::radians(90.0f),
-        glm::vec3{0.0f, 0.0f, 1.0f});
+    ubo.model = glm::translate(glm::mat4{1.0f}, {.9f, .0f, .0f});
 
-    ubo.view = glm::lookAt(glm::vec3{2.0f, 2.0f, 2.0f},
-        glm::vec3{0.0f, 0.0f, 0.0f},
-        glm::vec3{0.0f, 0.0f, 1.0f});
+    ubo.view = glm::mat4{1.0f};
 
-    ubo.projection = glm::perspective(glm::radians(45.0f),
-        static_cast<float>(swap_chain_->extent().width) /
-            static_cast<float>(swap_chain_->extent().height),
-        0.1f,
-        10.0f);
-
-    ubo.projection[1][1] *= -1;
+    ubo.projection[0][0] = .05f;
+    ubo.projection[1][1] = -1;
+    ubo.projection[2][2] = 1;
+    ubo.projection[3][3] = 3;
 
     memcpy(buffer.mapped_memory, &ubo, sizeof(uniform_buffer_object));
 }
 
+void vkpong::vulkan_renderer::update_instance_buffer(mapped_buffer& buffer)
+{
+    std::array data{instance_data{.offset = glm::vec2(-50.f, .0f)},
+        instance_data{.offset = glm::vec2(50.f, .0f)}};
+
+    memcpy(buffer.mapped_memory, data.data(), sizeof(data));
+}
+
 vkpong::vulkan_renderer::mapped_buffer::mapped_buffer(vulkan_device* device,
+    VkBufferUsageFlags usage,
     size_t size)
     : device_{device}
 {
     std::tie(buffer, device_memory) = create_buffer(device_->physical(),
         device_->logical(),
         size,
-        VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+        usage,
         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
             VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 

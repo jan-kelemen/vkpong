@@ -64,8 +64,8 @@ namespace vkpong
             std::filesystem::path const& path,
             std::string_view entry_point);
 
-        void add_vertex_input(
-            VkVertexInputBindingDescription binding_description,
+        void add_vertex_input(std::span<VkVertexInputBindingDescription const>
+                                  binding_description,
             std::span<VkVertexInputAttributeDescription const>
                 attribute_descriptions);
 

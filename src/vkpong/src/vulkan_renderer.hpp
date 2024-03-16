@@ -47,7 +47,9 @@ namespace vkpong
             void* mapped_memory{};
 
         public: // Construction
-            mapped_buffer(vulkan_device* device, size_t size);
+            mapped_buffer(vulkan_device* device,
+                VkBufferUsageFlags usage,
+                size_t size);
 
             mapped_buffer(mapped_buffer const&) = delete;
             mapped_buffer(mapped_buffer&& other) noexcept;
@@ -69,6 +71,7 @@ namespace vkpong
             uint32_t image_index);
 
         void update_uniform_buffer(mapped_buffer& buffer);
+        void update_instance_buffer(mapped_buffer& buffer);
 
     private: // Data
         std::unique_ptr<vulkan_context> context_;
@@ -79,9 +82,9 @@ namespace vkpong
         VkCommandPool command_pool_{};
         std::vector<VkCommandBuffer> command_buffers_{};
 
-        VkBuffer buffer_{};
-        VkDeviceMemory buffer_memory_{};
-
+        VkBuffer vertex_and_index_buffer_{};
+        VkDeviceMemory vertex_and_index_memory_{};
+        std::vector<mapped_buffer> instance_buffers_;
         std::vector<mapped_buffer> uniform_buffers_;
 
         VkDescriptorSetLayout descriptor_set_layout_{};
