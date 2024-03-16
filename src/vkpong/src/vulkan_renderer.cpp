@@ -19,6 +19,51 @@
 
 namespace
 {
+    struct [[nodiscard]] push_consts final
+    {
+        glm::fvec4 color[6];
+    };
+
+    struct [[nodiscard]] vertex final
+    {
+        glm::fvec2 position;
+
+        [[nodiscard]] static constexpr auto binding_description()
+        {
+            return VkVertexInputBindingDescription{.binding = 0,
+                .stride = sizeof(vertex),
+                .inputRate = VK_VERTEX_INPUT_RATE_VERTEX};
+        }
+
+        [[nodiscard]] static constexpr auto attribute_descriptions()
+        {
+            constexpr std::array descriptions{
+                VkVertexInputAttributeDescription{.location = 0,
+                    .binding = 0,
+                    .format = VK_FORMAT_R32G32_SFLOAT,
+                    .offset = offsetof(vertex, position)}};
+
+            return descriptions;
+        }
+    };
+
+    std::vector<vertex> const vertices{{{-.5f, -.5f}},
+        {{.5f, -.5f}},
+        {{.5f, .5f}},
+        {{-.5f, .5f}}};
+
+    std::vector<uint16_t> const indices{0, 1, 2, 2, 3, 0};
+
+    struct [[nodiscard]] uniform_buffer_object final
+    {
+        glm::mat4 model;
+        glm::mat4 view;
+        glm::mat4 projection;
+    };
+} // namespace
+
+namespace
+{
     [[nodiscard]] VkCommandPool create_command_pool(
         vkpong::vulkan_device* const device)
     {
@@ -104,6 +149,32 @@ namespace
         return rv;
     }
 
+    [[nodiscard]] VkDescriptorSetLayout create_descriptor_set_layout(
+        vkpong::vulkan_device* const device)
+    {
+        VkDescriptorSetLayoutBinding ubo_layout_binding{};
+        ubo_layout_binding.binding = 0;
+        ubo_layout_binding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        ubo_layout_binding.descriptorCount = 1;
+        ubo_layout_binding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+
+        VkDescriptorSetLayoutCreateInfo layout_info{};
+        layout_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+        layout_info.bindingCount = 1;
+        layout_info.pBindings = &ubo_layout_binding;
+
+        VkDescriptorSetLayout rv;
+        if (vkCreateDescriptorSetLayout(device->logical(),
+                &layout_info,
+                nullptr,
+                &rv) != VK_SUCCESS)
+        {
+            throw std::runtime_error{"failed to create descriptor set layout"};
+        }
+
+        return rv;
+    }
+
     void create_descriptor_sets(vkpong::vulkan_device* const device,
         VkDescriptorSetLayout const& layout,
         VkDescriptorPool const& descriptor_pool,
@@ -164,11 +235,29 @@ vkpong::vulkan_renderer::vulkan_renderer(
     : context_{std::move(context)}
     , device_{std::move(device)}
     , swap_chain_{std::move(swap_chain)}
-    , pipeline_{create_pipeline(device_.get(), swap_chain_.get())}
     , command_pool_{create_command_pool(device_.get())}
     , command_buffers_{vulkan_swap_chain::max_frames_in_flight}
+    , descriptor_set_layout_{create_descriptor_set_layout(device_.get())}
     , descriptor_pool_{create_descriptor_pool(device_.get())}
 {
+    vulkan_pipeline_builder pipeline_builder{device_.get(),
+        swap_chain_->image_format()};
+
+    pipeline_builder.add_shader(VK_SHADER_STAGE_VERTEX_BIT, "vert.spv", "main");
+    pipeline_builder.add_shader(VK_SHADER_STAGE_FRAGMENT_BIT,
+        "frag.spv",
+        "main");
+    pipeline_builder.with_rasterization_samples(device_->max_msaa_samples());
+    pipeline_builder.add_vertex_input(vertex::binding_description(),
+        vertex::attribute_descriptions());
+    pipeline_builder.with_push_constants(
+        VkPushConstantRange{.stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
+            .offset = 0,
+            .size = sizeof(push_consts)});
+    pipeline_builder.add_descriptor_set_layout(descriptor_set_layout_);
+
+    pipeline_ = std::make_unique<vulkan_pipeline>(pipeline_builder.build());
+
     create_command_buffers(device_.get(),
         command_pool_,
         vulkan_swap_chain::max_frames_in_flight,
@@ -179,7 +268,7 @@ vkpong::vulkan_renderer::vulkan_renderer(
 
     descriptor_sets_.resize(vulkan_swap_chain::max_frames_in_flight);
     create_descriptor_sets(device_.get(),
-        pipeline_->descriptor_set_layout(),
+        descriptor_set_layout_,
         descriptor_pool_,
         descriptor_sets_);
 
@@ -196,6 +285,9 @@ vkpong::vulkan_renderer::~vulkan_renderer()
     vkDeviceWaitIdle(device_->logical());
 
     vkDestroyDescriptorPool(device_->logical(), descriptor_pool_, nullptr);
+    vkDestroyDescriptorSetLayout(device_->logical(),
+        descriptor_set_layout_,
+        nullptr);
 
     uniform_buffers_.clear();
 

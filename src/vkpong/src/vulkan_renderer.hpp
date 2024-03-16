@@ -84,6 +84,7 @@ namespace vkpong
 
         std::vector<mapped_buffer> uniform_buffers_;
 
+        VkDescriptorSetLayout descriptor_set_layout_{};
         VkDescriptorPool descriptor_pool_{};
         std::vector<VkDescriptorSet> descriptor_sets_;
 

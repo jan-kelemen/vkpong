@@ -1,59 +1,14 @@
 #ifndef VKPONG_VULKAN_PIPELINE_INCLUDED
 #define VKPONG_VULKAN_PIPELINE_INCLUDED
 
-#include <glm/glm.hpp>
-
 #include <vulkan/vulkan_core.h>
 
 #include <array>
+#include <filesystem>
 #include <memory>
+#include <optional>
 #include <span>
 #include <vector>
-
-namespace
-{
-    struct [[nodiscard]] push_consts final
-    {
-        glm::fvec4 color[6];
-    };
-
-    struct [[nodiscard]] vertex final
-    {
-        glm::fvec2 position;
-
-        [[nodiscard]] static constexpr auto binding_description()
-        {
-            return VkVertexInputBindingDescription{.binding = 0,
-                .stride = sizeof(vertex),
-                .inputRate = VK_VERTEX_INPUT_RATE_VERTEX};
-        }
-
-        [[nodiscard]] static constexpr auto attribute_descriptions()
-        {
-            constexpr std::array descriptions{
-                VkVertexInputAttributeDescription{.location = 0,
-                    .binding = 0,
-                    .format = VK_FORMAT_R32G32_SFLOAT,
-                    .offset = offsetof(vertex, position)}};
-
-            return descriptions;
-        }
-    };
-
-    std::vector<vertex> const vertices{{{-.5f, -.5f}},
-        {{.5f, -.5f}},
-        {{.5f, .5f}},
-        {{-.5f, .5f}}};
-
-    std::vector<uint16_t> const indices{0, 1, 2, 2, 3, 0};
-
-    struct [[nodiscard]] uniform_buffer_object final
-    {
-        glm::mat4 model;
-        glm::mat4 view;
-        glm::mat4 projection;
-    };
-} // namespace
 
 namespace vkpong
 {
@@ -65,6 +20,15 @@ namespace vkpong
 {
     class [[nodiscard]] vulkan_pipeline final
     {
+    public: // Construction
+        vulkan_pipeline(vulkan_device* device,
+            VkPipelineLayout pipeline_layout,
+            VkPipeline pipeline);
+
+        vulkan_pipeline(vulkan_pipeline const&) = delete;
+
+        vulkan_pipeline(vulkan_pipeline&& other) noexcept;
+
     public: // Destruction
         ~vulkan_pipeline();
 
@@ -74,21 +38,59 @@ namespace vkpong
         [[nodiscard]] constexpr VkPipelineLayout
         pipeline_layout() const noexcept;
 
-        [[nodiscard]] constexpr VkDescriptorSetLayout
-        descriptor_set_layout() const noexcept;
+    public: // Operators
+        vulkan_pipeline& operator=(vulkan_pipeline const&) = delete;
+
+        vulkan_pipeline& operator=(vulkan_pipeline&& other) noexcept;
 
     private: // Data
         vulkan_device* device_{};
-        VkDescriptorSetLayout descriptor_set_layout_{};
         VkPipelineLayout pipeline_layout_{};
         VkPipeline pipeline_{};
-
-        friend std::unique_ptr<vulkan_pipeline>
-        create_pipeline(vulkan_device* device, vulkan_swap_chain* swap_chain);
     };
 
-    std::unique_ptr<vulkan_pipeline> create_pipeline(vulkan_device* device,
-        vulkan_swap_chain* swap_chain);
+    class [[nodiscard]] vulkan_pipeline_builder final
+    {
+    public: // Construction
+        vulkan_pipeline_builder(vulkan_device* device, VkFormat image_format);
+
+    public: // Destruction
+        ~vulkan_pipeline_builder();
+
+    public: // Interface
+        [[nodiscard]] vulkan_pipeline build();
+
+        void add_shader(VkShaderStageFlagBits stage,
+            std::filesystem::path const& path,
+            std::string_view entry_point);
+
+        void add_vertex_input(
+            VkVertexInputBindingDescription binding_description,
+            std::span<VkVertexInputAttributeDescription const>
+                attribute_descriptions);
+
+        void add_descriptor_set_layout(
+            VkDescriptorSetLayout descriptor_set_layout);
+
+        void with_rasterization_samples(VkSampleCountFlagBits samples);
+
+        void with_push_constants(VkPushConstantRange push_constants);
+
+    private: // Helpers
+        void cleanup();
+
+    private: // Data
+        vulkan_device* device_{};
+        VkFormat image_format_{};
+        std::vector<
+            std::tuple<VkShaderStageFlagBits, VkShaderModule, std::string>>
+            shaders_;
+        std::vector<VkVertexInputBindingDescription> vertex_input_binding_;
+        std::vector<VkVertexInputAttributeDescription> vertex_input_attributes_;
+        std::vector<VkDescriptorSetLayout> descriptor_set_layouts_;
+        VkSampleCountFlagBits rasterization_samples_{VK_SAMPLE_COUNT_1_BIT};
+        std::optional<VkPushConstantRange> push_constants_;
+    };
 } // namespace vkpong
 
 inline constexpr VkPipeline vkpong::vulkan_pipeline::pipeline() const noexcept
@@ -100,12 +102,6 @@ inline constexpr VkPipelineLayout
 vkpong::vulkan_pipeline::pipeline_layout() const noexcept
 {
     return pipeline_layout_;
-}
-
-inline constexpr VkDescriptorSetLayout
-vkpong::vulkan_pipeline::descriptor_set_layout() const noexcept
-{
-    return descriptor_set_layout_;
 }
 
 #endif // !VKPONG_VULKAN_PIPELINE_INCLUDED
