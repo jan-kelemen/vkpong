@@ -44,18 +44,20 @@ namespace vkpong
         ~vulkan_swap_chain();
 
     public: // Interface
-        [[nodiscard]] constexpr VkExtent2D extent() const;
+        [[nodiscard]] constexpr VkExtent2D extent() const noexcept;
 
-        [[nodiscard]] constexpr VkFormat image_format() const;
+        [[nodiscard]] constexpr VkFormat image_format() const noexcept;
 
-        [[nodiscard]] constexpr VkImage image(uint32_t const image_index) const;
+        [[nodiscard]] constexpr VkImage image(
+            uint32_t const image_index) const noexcept;
 
         [[nodiscard]] constexpr VkImageView image_view(
-            uint32_t const image_index) const;
+            uint32_t const image_index) const noexcept;
 
-        [[nodiscard]] bool is_multisampled() const;
+        [[nodiscard]] bool is_multisampled() const noexcept;
 
-        [[nodiscard]] constexpr VkImageView intermediate_image_view() const;
+        [[nodiscard]] constexpr VkImageView
+        intermediate_image_view() const noexcept;
 
         [[nodiscard]] bool acquire_next_image(uint32_t current_frame,
             uint32_t& image_index);
@@ -123,29 +125,31 @@ namespace vkpong
 
 } // namespace vkpong
 
-constexpr VkExtent2D vkpong::vulkan_swap_chain::extent() const
+inline constexpr VkExtent2D vkpong::vulkan_swap_chain::extent() const noexcept
 {
     return extent_;
 }
 
-constexpr VkFormat vkpong::vulkan_swap_chain::image_format() const
+inline constexpr VkFormat
+vkpong::vulkan_swap_chain::image_format() const noexcept
 {
     return image_format_;
 }
 
-constexpr VkImage vkpong::vulkan_swap_chain::image(
-    uint32_t const image_index) const
+inline constexpr VkImage vkpong::vulkan_swap_chain::image(
+    uint32_t const image_index) const noexcept
 {
     return images_[image_index];
 }
 
-constexpr VkImageView vkpong::vulkan_swap_chain::image_view(
-    uint32_t const image_index) const
+inline constexpr VkImageView vkpong::vulkan_swap_chain::image_view(
+    uint32_t const image_index) const noexcept
 {
     return image_views_[image_index];
 }
 
-constexpr VkImageView vkpong::vulkan_swap_chain::intermediate_image_view() const
+inline constexpr VkImageView
+vkpong::vulkan_swap_chain::intermediate_image_view() const noexcept
 {
     return color_image_view_;
 }

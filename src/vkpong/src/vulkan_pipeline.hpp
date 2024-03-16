@@ -69,12 +69,13 @@ namespace vkpong
         ~vulkan_pipeline();
 
     public: // Interface
-        [[nodiscard]] constexpr VkPipeline pipeline() const;
+        [[nodiscard]] constexpr VkPipeline pipeline() const noexcept;
 
-        [[nodiscard]] constexpr VkPipelineLayout pipeline_layout() const;
+        [[nodiscard]] constexpr VkPipelineLayout
+        pipeline_layout() const noexcept;
 
         [[nodiscard]] constexpr VkDescriptorSetLayout
-        descriptor_set_layout() const;
+        descriptor_set_layout() const noexcept;
 
     private: // Data
         vulkan_device* device_{};
@@ -90,18 +91,19 @@ namespace vkpong
         vulkan_swap_chain* swap_chain);
 } // namespace vkpong
 
-constexpr VkPipeline vkpong::vulkan_pipeline::pipeline() const
+inline constexpr VkPipeline vkpong::vulkan_pipeline::pipeline() const noexcept
 {
     return pipeline_;
 }
 
-constexpr VkPipelineLayout vkpong::vulkan_pipeline::pipeline_layout() const
+inline constexpr VkPipelineLayout
+vkpong::vulkan_pipeline::pipeline_layout() const noexcept
 {
     return pipeline_layout_;
 }
 
-constexpr VkDescriptorSetLayout
-vkpong::vulkan_pipeline::descriptor_set_layout() const
+inline constexpr VkDescriptorSetLayout
+vkpong::vulkan_pipeline::descriptor_set_layout() const noexcept
 {
     return descriptor_set_layout_;
 }

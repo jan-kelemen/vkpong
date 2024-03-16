@@ -26,7 +26,7 @@ namespace
         .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES,
         .dynamicRendering = VK_TRUE};
 
-    struct [[nodiscard]] queue_family_indices
+    struct [[nodiscard]] queue_family_indices final
     {
         std::optional<uint32_t> graphics_family;
         std::optional<uint32_t> present_family;
@@ -161,40 +161,52 @@ namespace
     }
 } // namespace
 
-vkpong::vulkan_device::~vulkan_device() { vkDestroyDevice(logical, nullptr); }
+vkpong::vulkan_device::vulkan_device(VkPhysicalDevice physical_device,
+    VkDevice logical_device,
+    uint32_t graphics_family,
+    uint32_t present_family)
+    : physical_device_{physical_device}
+    , logical_device_{logical_device}
+    , graphics_family_{graphics_family}
+    , present_family_{present_family}
+    , max_msaa_samples_{max_usable_sample_count(physical_device)}
+{
+}
 
-std::unique_ptr<vkpong::vulkan_device> vkpong::create_device(
-    vulkan_context* context)
+vkpong::vulkan_device::~vulkan_device()
+{
+    vkDestroyDevice(logical_device_, nullptr);
+}
+
+vkpong::vulkan_device vkpong::create_device(vulkan_context const& context)
 {
     uint32_t count{};
-    vkEnumeratePhysicalDevices(context->instance, &count, nullptr);
+    vkEnumeratePhysicalDevices(context.instance(), &count, nullptr);
     if (count == 0)
     {
         throw std::runtime_error{"failed to find GPUs with Vulkan support!"};
     }
 
     std::vector<VkPhysicalDevice> devices{count};
-    vkEnumeratePhysicalDevices(context->instance, &count, devices.data());
+    vkEnumeratePhysicalDevices(context.instance(), &count, devices.data());
 
     queue_family_indices device_indices;
     auto const device_it{std::ranges::find_if(devices,
-        [context, &device_indices](auto const& device) mutable {
-            return is_device_suitable(device, context->surface, device_indices);
+        [&context, &device_indices](auto const& device) mutable {
+            return is_device_suitable(device,
+                context.surface(),
+                device_indices);
         })};
     if (device_it == devices.cend())
     {
         throw std::runtime_error{"failed to find a suitable GPU!"};
     }
 
-    auto rv{std::make_unique<vulkan_device>()};
-    rv->physical = *device_it;
-    rv->graphics_family = device_indices.graphics_family.value_or(0);
-    rv->present_family = device_indices.present_family.value_or(0);
-    rv->max_msaa_samples_ = max_usable_sample_count(*device_it);
+    auto const graphics_family{device_indices.graphics_family.value_or(0)};
+    auto const present_family{device_indices.present_family.value_or(0)};
 
     float const priority{1.0f};
-    std::set<uint32_t> const unique_families{rv->graphics_family,
-        rv->present_family};
+    std::set<uint32_t> const unique_families{graphics_family, present_family};
     std::vector<VkDeviceQueueCreateInfo> queue_create_infos;
     for (uint32_t const family : unique_families)
     {
@@ -216,11 +228,13 @@ std::unique_ptr<vkpong::vulkan_device> vkpong::create_device(
     create_info.ppEnabledExtensionNames = device_extensions.data();
     create_info.pEnabledFeatures = &device_features;
     create_info.pNext = &device_13_features;
-    if (vkCreateDevice(rv->physical, &create_info, nullptr, &rv->logical) !=
+
+    VkDevice logical_device{};
+    if (vkCreateDevice(*device_it, &create_info, nullptr, &logical_device) !=
         VK_SUCCESS)
     {
         throw std::runtime_error{"failed to create logical device!"};
     }
 
-    return rv;
+    return {*device_it, logical_device, graphics_family, present_family};
 }

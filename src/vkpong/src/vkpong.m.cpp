@@ -18,9 +18,11 @@ int main()
     {
         vkpong::window window;
         {
-            auto context{vkpong::create_context(window.handle(),
-                enable_validation_layers)};
-            auto device{vkpong::create_device(context.get())};
+            auto context{std::make_unique<vkpong::vulkan_context>(
+                vkpong::create_context(window.handle(),
+                    enable_validation_layers))};
+            auto device{std::make_unique<vkpong::vulkan_device>(
+                vkpong::create_device(*context))};
             auto swap_chain{
                 std::make_unique<vkpong::vulkan_swap_chain>(window.handle(),
                     context.get(),

@@ -1,4 +1,6 @@
 #include <vulkan_context.hpp>
+
+#include <scope_exit.hpp>
 #include <vulkan_utility.hpp>
 
 #include <GLFW/glfw3.h>
@@ -13,8 +15,7 @@
 
 namespace
 {
-    constexpr std::array<char const*, 1> const validation_layers{
-        "VK_LAYER_KHRONOS_validation"};
+    constexpr std::array const validation_layers{"VK_LAYER_KHRONOS_validation"};
 
     [[nodiscard]] bool check_validation_layer_support()
     {
@@ -114,36 +115,37 @@ namespace
         }
     }
 
-    VkDebugUtilsMessengerEXT create_debug_messenger(VkInstance const instance)
+    VkResult create_debug_messenger(VkInstance const instance,
+        VkDebugUtilsMessengerEXT& debug_messenger)
     {
         VkDebugUtilsMessengerCreateInfoEXT create_info{};
         populate_debug_messenger_create_info(create_info);
 
-        VkDebugUtilsMessengerEXT rv{};
-        if (create_debug_utils_messenger_ext(instance,
-                &create_info,
-                nullptr,
-                &rv) != VK_SUCCESS)
-        {
-            throw std::runtime_error{"failed to create debug messenger!"};
-        }
-
-        return rv;
+        return create_debug_utils_messenger_ext(instance,
+            &create_info,
+            nullptr,
+            &debug_messenger);
     }
 } // namespace
 
 vkpong::vulkan_context::~vulkan_context()
 {
-    vkDestroySurfaceKHR(instance, surface, nullptr);
-    if (debug_messenger)
+    if (surface_)
     {
-        destroy_debug_utils_messenger_ext(instance, *debug_messenger, nullptr);
+        vkDestroySurfaceKHR(instance_, surface_, nullptr);
     }
-    vkDestroyInstance(instance, nullptr);
+
+    if (debug_messenger_)
+    {
+        destroy_debug_utils_messenger_ext(instance_,
+            *debug_messenger_,
+            nullptr);
+    }
+
+    vkDestroyInstance(instance_, nullptr);
 }
 
-std::unique_ptr<vkpong::vulkan_context> vkpong::create_context(
-    GLFWwindow* const window,
+vkpong::vulkan_context vkpong::create_context(GLFWwindow* const window,
     bool const setup_validation_layers)
 {
     VkApplicationInfo app_info{};
@@ -188,22 +190,37 @@ std::unique_ptr<vkpong::vulkan_context> vkpong::create_context(
     create_info.enabledExtensionCount = count_cast(required_extensions.size());
     create_info.ppEnabledExtensionNames = required_extensions.data();
 
-    auto rv{std::make_unique<vulkan_context>()};
-    if (vkCreateInstance(&create_info, nullptr, &rv->instance) != VK_SUCCESS)
+    VkInstance instance{};
+    if (vkCreateInstance(&create_info, nullptr, &instance) != VK_SUCCESS)
     {
         throw std::runtime_error{"failed to create instance"};
     }
 
+    std::optional<VkDebugUtilsMessengerEXT> debug_messenger;
     if (has_debug_utils_extension)
     {
-        rv->debug_messenger = create_debug_messenger(rv->instance);
+        VkDebugUtilsMessengerEXT messenger{};
+        if (create_debug_messenger(instance, messenger) != VK_SUCCESS)
+        {
+            vkDestroyInstance(instance, nullptr);
+            throw std::runtime_error{"failed to create debug messenger!"};
+        }
+        debug_messenger = messenger;
     }
 
-    if (glfwCreateWindowSurface(rv->instance, window, nullptr, &rv->surface) !=
+    VkSurfaceKHR surface{};
+    if (glfwCreateWindowSurface(instance, window, nullptr, &surface) !=
         VK_SUCCESS)
     {
+        if (debug_messenger)
+        {
+            destroy_debug_utils_messenger_ext(instance,
+                *debug_messenger,
+                nullptr);
+        }
+        vkDestroyInstance(instance, nullptr);
         throw std::runtime_error{"failed to create window surface"};
     }
 
-    return rv;
+    return {instance, debug_messenger, surface};
 }

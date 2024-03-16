@@ -25,10 +25,10 @@ namespace
         VkCommandPoolCreateInfo pool_info{};
         pool_info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
         pool_info.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
-        pool_info.queueFamilyIndex = device->graphics_family;
+        pool_info.queueFamilyIndex = device->graphics_family();
 
         VkCommandPool rv;
-        if (vkCreateCommandPool(device->logical, &pool_info, nullptr, &rv) !=
+        if (vkCreateCommandPool(device->logical(), &pool_info, nullptr, &rv) !=
             VK_SUCCESS)
         {
             throw std::runtime_error{"failed to create command pool"};
@@ -50,7 +50,7 @@ namespace
         alloc_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
         alloc_info.commandBufferCount = count;
 
-        if (vkAllocateCommandBuffers(device->logical,
+        if (vkAllocateCommandBuffers(device->logical(),
                 &alloc_info,
                 data_buffer.data()) != VK_SUCCESS)
         {
@@ -69,8 +69,8 @@ namespace
             VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
         buffer_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
-        return vkpong::create_buffer(device->physical,
-            device->logical,
+        return vkpong::create_buffer(device->physical(),
+            device->logical(),
             buffer_info.size,
             buffer_info.usage,
             VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
@@ -93,8 +93,10 @@ namespace
         pool_info.maxSets = count;
 
         VkDescriptorPool rv{};
-        if (vkCreateDescriptorPool(device->logical, &pool_info, nullptr, &rv) !=
-            VK_SUCCESS)
+        if (vkCreateDescriptorPool(device->logical(),
+                &pool_info,
+                nullptr,
+                &rv) != VK_SUCCESS)
         {
             throw std::runtime_error{"failed to create descriptor pool!"};
         }
@@ -120,7 +122,7 @@ namespace
         alloc_info.descriptorSetCount = count;
         alloc_info.pSetLayouts = layouts.data();
 
-        if (vkAllocateDescriptorSets(device->logical,
+        if (vkAllocateDescriptorSets(device->logical(),
                 &alloc_info,
                 descriptor_sets.data()) != VK_SUCCESS)
         {
@@ -146,7 +148,7 @@ namespace
         descriptor_write.descriptorCount = 1;
         descriptor_write.pBufferInfo = &buffer_info;
 
-        vkUpdateDescriptorSets(device->logical,
+        vkUpdateDescriptorSets(device->logical(),
             1,
             &descriptor_write,
             0,
@@ -191,16 +193,16 @@ vkpong::vulkan_renderer::vulkan_renderer(
 
 vkpong::vulkan_renderer::~vulkan_renderer()
 {
-    vkDeviceWaitIdle(device_->logical);
+    vkDeviceWaitIdle(device_->logical());
 
-    vkDestroyDescriptorPool(device_->logical, descriptor_pool_, nullptr);
+    vkDestroyDescriptorPool(device_->logical(), descriptor_pool_, nullptr);
 
     uniform_buffers_.clear();
 
-    vkDestroyBuffer(device_->logical, buffer_, nullptr);
-    vkFreeMemory(device_->logical, buffer_memory_, nullptr);
+    vkDestroyBuffer(device_->logical(), buffer_, nullptr);
+    vkFreeMemory(device_->logical(), buffer_memory_, nullptr);
 
-    vkDestroyCommandPool(device_->logical, command_pool_, nullptr);
+    vkDestroyCommandPool(device_->logical(), command_pool_, nullptr);
 }
 
 void vkpong::vulkan_renderer::draw()
@@ -303,7 +305,7 @@ void vkpong::vulkan_renderer::record_command_buffer(
         pipeline_->pipeline());
 
     void* data{};
-    if (vkMapMemory(device_->logical,
+    if (vkMapMemory(device_->logical(),
             buffer_memory_,
             0,
             sizeof(vertices[0]) * vertices.size(),
@@ -319,7 +321,7 @@ void vkpong::vulkan_renderer::record_command_buffer(
     memcpy(reinterpret_cast<std::byte*>(data) + vertices_size,
         indices.data(),
         indices_size);
-    vkUnmapMemory(device_->logical, buffer_memory_);
+    vkUnmapMemory(device_->logical(), buffer_memory_);
 
     std::array vertex_buffer_{buffer_};
     std::array const offsets{VkDeviceSize{0}};
@@ -442,14 +444,14 @@ vkpong::vulkan_renderer::mapped_buffer::mapped_buffer(vulkan_device* device,
     size_t size)
     : device_{device}
 {
-    std::tie(buffer, device_memory) = create_buffer(device_->physical,
-        device_->logical,
+    std::tie(buffer, device_memory) = create_buffer(device_->physical(),
+        device_->logical(),
         size,
         VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
             VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 
-    if (vkMapMemory(device_->logical,
+    if (vkMapMemory(device_->logical(),
             device_memory,
             0,
             size,
@@ -473,8 +475,8 @@ vkpong::vulkan_renderer::mapped_buffer::~mapped_buffer()
 {
     if (device_memory != nullptr)
     {
-        vkUnmapMemory(device_->logical, device_memory);
-        vkDestroyBuffer(device_->logical, buffer, nullptr);
-        vkFreeMemory(device_->logical, device_memory, nullptr);
+        vkUnmapMemory(device_->logical(), device_memory);
+        vkDestroyBuffer(device_->logical(), buffer, nullptr);
+        vkFreeMemory(device_->logical(), device_memory, nullptr);
     }
 }

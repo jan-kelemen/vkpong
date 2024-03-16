@@ -155,8 +155,10 @@ namespace
         semaphore_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
 
         VkSemaphore rv;
-        if (vkCreateSemaphore(device->logical, &semaphore_info, nullptr, &rv) !=
-            VK_SUCCESS)
+        if (vkCreateSemaphore(device->logical(),
+                &semaphore_info,
+                nullptr,
+                &rv) != VK_SUCCESS)
         {
             throw std::runtime_error{"failed to create semaphore"};
         }
@@ -175,7 +177,7 @@ namespace
         }
 
         VkFence rv;
-        if (vkCreateFence(device->logical, &fence_info, nullptr, &rv) !=
+        if (vkCreateFence(device->logical(), &fence_info, nullptr, &rv) !=
             VK_SUCCESS)
         {
             throw std::runtime_error{"failed to create fence"};
@@ -238,13 +240,13 @@ vkpong::vulkan_swap_chain::vulkan_swap_chain(GLFWwindow* window,
         image_syncs_.emplace_back(device_);
     }
 
-    vkGetDeviceQueue(device_->logical,
-        device_->graphics_family,
+    vkGetDeviceQueue(device_->logical(),
+        device_->graphics_family(),
         0,
         &graphics_queue_);
 
-    vkGetDeviceQueue(device_->logical,
-        device_->present_family,
+    vkGetDeviceQueue(device_->logical(),
+        device_->present_family(),
         0,
         &present_queue_);
 
@@ -260,9 +262,9 @@ vkpong::vulkan_swap_chain::~vulkan_swap_chain()
 
 // Interface
 
-bool vkpong::vulkan_swap_chain::is_multisampled() const
+bool vkpong::vulkan_swap_chain::is_multisampled() const noexcept
 {
-    return device_->max_msaa_samples_ != VK_SAMPLE_COUNT_1_BIT;
+    return device_->max_msaa_samples() != VK_SAMPLE_COUNT_1_BIT;
 }
 
 bool vkpong::vulkan_swap_chain::acquire_next_image(uint32_t const current_frame,
@@ -272,9 +274,13 @@ bool vkpong::vulkan_swap_chain::acquire_next_image(uint32_t const current_frame,
 
     auto const& sync{image_syncs_[current_frame]};
 
-    vkWaitForFences(device_->logical, 1, &sync.in_flight, VK_TRUE, UINT64_MAX);
+    vkWaitForFences(device_->logical(),
+        1,
+        &sync.in_flight,
+        VK_TRUE,
+        UINT64_MAX);
 
-    VkResult result{vkAcquireNextImageKHR(device_->logical,
+    VkResult result{vkAcquireNextImageKHR(device_->logical(),
         chain,
         timeout,
         sync.image_available,
@@ -290,7 +296,7 @@ bool vkpong::vulkan_swap_chain::acquire_next_image(uint32_t const current_frame,
         throw std::runtime_error{"failed to acquire swap chain image"};
     }
 
-    vkResetFences(device_->logical, 1, &sync.in_flight);
+    vkResetFences(device_->logical(), 1, &sync.in_flight);
     return true;
 }
 
@@ -355,7 +361,7 @@ void vkpong::vulkan_swap_chain::recreate()
         glfwWaitEvents();
     }
 
-    vkDeviceWaitIdle(device_->logical);
+    vkDeviceWaitIdle(device_->logical());
     cleanup();
     create_chain_and_images();
 }
@@ -372,7 +378,7 @@ void vkpong::vulkan_swap_chain::framebuffer_resize_callback(GLFWwindow* window,
 void vkpong::vulkan_swap_chain::create_chain_and_images()
 {
     auto swap_details{
-        query_swap_chain_support(device_->physical, context_->surface)};
+        query_swap_chain_support(device_->physical(), context_->surface())};
 
     VkPresentModeKHR const present_mode{
         choose_swap_present_mode(swap_details.present_modes)};
@@ -391,7 +397,7 @@ void vkpong::vulkan_swap_chain::create_chain_and_images()
 
     VkSwapchainCreateInfoKHR create_info{};
     create_info.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
-    create_info.surface = context_->surface;
+    create_info.surface = context_->surface();
     create_info.minImageCount = image_count;
     create_info.imageFormat = surface_format.format;
     create_info.imageColorSpace = surface_format.colorSpace;
@@ -404,9 +410,9 @@ void vkpong::vulkan_swap_chain::create_chain_and_images()
     create_info.clipped = VK_TRUE;
     create_info.oldSwapchain = VK_NULL_HANDLE;
 
-    std::array const queue_family_indices{device_->graphics_family,
-        device_->present_family};
-    if (device_->graphics_family != device_->present_family)
+    std::array const queue_family_indices{device_->graphics_family(),
+        device_->present_family()};
+    if (device_->graphics_family() != device_->present_family())
     {
         create_info.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
         create_info.queueFamilyIndexCount = 2;
@@ -419,13 +425,15 @@ void vkpong::vulkan_swap_chain::create_chain_and_images()
         create_info.pQueueFamilyIndices = nullptr;
     }
 
-    if (vkCreateSwapchainKHR(device_->logical, &create_info, nullptr, &chain) !=
-        VK_SUCCESS)
+    if (vkCreateSwapchainKHR(device_->logical(),
+            &create_info,
+            nullptr,
+            &chain) != VK_SUCCESS)
     {
         throw std::runtime_error{"failed to create swap chain!"};
     }
 
-    if (vkGetSwapchainImagesKHR(device_->logical,
+    if (vkGetSwapchainImagesKHR(device_->logical(),
             chain,
             &image_count,
             nullptr) != VK_SUCCESS)
@@ -434,7 +442,7 @@ void vkpong::vulkan_swap_chain::create_chain_and_images()
     }
 
     images_.resize(image_count);
-    if (vkGetSwapchainImagesKHR(device_->logical,
+    if (vkGetSwapchainImagesKHR(device_->logical(),
             chain,
             &image_count,
             images_.data()) != VK_SUCCESS)
@@ -445,7 +453,7 @@ void vkpong::vulkan_swap_chain::create_chain_and_images()
     image_views_.resize(image_count);
     for (size_t i{}; i != image_count; ++i)
     {
-        image_views_[i] = create_image_view(device_->logical,
+        image_views_[i] = create_image_view(device_->logical(),
             images_[i],
             image_format_,
             VK_IMAGE_ASPECT_COLOR_BIT,
@@ -455,12 +463,12 @@ void vkpong::vulkan_swap_chain::create_chain_and_images()
     if (is_multisampled())
     {
         // color image
-        create_image(device_->physical,
-            device_->logical,
+        create_image(device_->physical(),
+            device_->logical(),
             extent_.width,
             extent_.height,
             1,
-            device_->max_msaa_samples_,
+            device_->max_msaa_samples(),
             image_format_,
             VK_IMAGE_TILING_OPTIMAL,
             VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT |
@@ -468,7 +476,7 @@ void vkpong::vulkan_swap_chain::create_chain_and_images()
             VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
             color_image_,
             color_image_memory_);
-        color_image_view_ = create_image_view(device_->logical,
+        color_image_view_ = create_image_view(device_->logical(),
             color_image_,
             image_format_,
             VK_IMAGE_ASPECT_COLOR_BIT,
@@ -480,17 +488,17 @@ void vkpong::vulkan_swap_chain::cleanup()
 {
     if (is_multisampled())
     {
-        vkDestroyImageView(device_->logical, color_image_view_, nullptr);
-        vkDestroyImage(device_->logical, color_image_, nullptr);
-        vkFreeMemory(device_->logical, color_image_memory_, nullptr);
+        vkDestroyImageView(device_->logical(), color_image_view_, nullptr);
+        vkDestroyImage(device_->logical(), color_image_, nullptr);
+        vkFreeMemory(device_->logical(), color_image_memory_, nullptr);
     }
 
     for (size_t i{}; i != images_.size(); ++i)
     {
-        vkDestroyImageView(device_->logical, image_views_[i], nullptr);
+        vkDestroyImageView(device_->logical(), image_views_[i], nullptr);
     }
 
-    vkDestroySwapchainKHR(device_->logical, chain, nullptr);
+    vkDestroySwapchainKHR(device_->logical(), chain, nullptr);
 }
 
 vkpong::vulkan_swap_chain::image_sync::image_sync(
@@ -515,7 +523,7 @@ vkpong::vulkan_swap_chain::image_sync::image_sync(image_sync&& other) noexcept
 
 vkpong::vulkan_swap_chain::image_sync::~image_sync()
 {
-    vkDestroyFence(device_->logical, in_flight, nullptr);
-    vkDestroySemaphore(device_->logical, render_finished, nullptr);
-    vkDestroySemaphore(device_->logical, image_available, nullptr);
+    vkDestroyFence(device_->logical(), in_flight, nullptr);
+    vkDestroySemaphore(device_->logical(), render_finished, nullptr);
+    vkDestroySemaphore(device_->logical(), image_available, nullptr);
 }

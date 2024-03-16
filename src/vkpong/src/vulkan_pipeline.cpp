@@ -58,9 +58,9 @@ namespace
 
 vkpong::vulkan_pipeline::~vulkan_pipeline()
 {
-    vkDestroyPipeline(device_->logical, pipeline_, nullptr);
-    vkDestroyPipelineLayout(device_->logical, pipeline_layout_, nullptr);
-    vkDestroyDescriptorSetLayout(device_->logical,
+    vkDestroyPipeline(device_->logical(), pipeline_, nullptr);
+    vkDestroyPipelineLayout(device_->logical(), pipeline_layout_, nullptr);
+    vkDestroyDescriptorSetLayout(device_->logical(),
         descriptor_set_layout_,
         nullptr);
 }
@@ -70,9 +70,9 @@ vkpong::create_pipeline(vulkan_device* device, vulkan_swap_chain* swap_chain)
 {
     // vert shader
     VkShaderModule const vert_shader_code{
-        create_shader_module(device->logical, read_file("vert.spv"))};
+        create_shader_module(device->logical(), read_file("vert.spv"))};
     VKPONG_ON_SCOPE_EXIT(
-        vkDestroyShaderModule(device->logical, vert_shader_code, nullptr));
+        vkDestroyShaderModule(device->logical(), vert_shader_code, nullptr));
 
     VkPipelineShaderStageCreateInfo vert_shader_stage_info{};
     vert_shader_stage_info.sType =
@@ -83,9 +83,9 @@ vkpong::create_pipeline(vulkan_device* device, vulkan_swap_chain* swap_chain)
 
     // frag shader
     VkShaderModule const frag_shader_code{
-        create_shader_module(device->logical, read_file("frag.spv"))};
+        create_shader_module(device->logical(), read_file("frag.spv"))};
     VKPONG_ON_SCOPE_EXIT(
-        vkDestroyShaderModule(device->logical, frag_shader_code, nullptr));
+        vkDestroyShaderModule(device->logical(), frag_shader_code, nullptr));
 
     VkPipelineShaderStageCreateInfo frag_shader_stage_info{};
     frag_shader_stage_info.sType =
@@ -142,7 +142,7 @@ vkpong::create_pipeline(vulkan_device* device, vulkan_swap_chain* swap_chain)
         VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
     multisampling.sampleShadingEnable = VK_TRUE;
     multisampling.minSampleShading = .2f;
-    multisampling.rasterizationSamples = device->max_msaa_samples_;
+    multisampling.rasterizationSamples = device->max_msaa_samples();
 
     // color blend state
     VkPipelineColorBlendAttachmentState color_blend_attachment{};
@@ -179,7 +179,7 @@ vkpong::create_pipeline(vulkan_device* device, vulkan_swap_chain* swap_chain)
     auto rv{std::make_unique<vulkan_pipeline>()};
     rv->device_ = device;
 
-    if (vkCreateDescriptorSetLayout(device->logical,
+    if (vkCreateDescriptorSetLayout(device->logical(),
             &layout_info,
             nullptr,
             &rv->descriptor_set_layout_) != VK_SUCCESS)
@@ -205,7 +205,7 @@ vkpong::create_pipeline(vulkan_device* device, vulkan_swap_chain* swap_chain)
     pipeline_layout_info.setLayoutCount = 1;
     pipeline_layout_info.pSetLayouts = &rv->descriptor_set_layout_;
 
-    if (vkCreatePipelineLayout(device->logical,
+    if (vkCreatePipelineLayout(device->logical(),
             &pipeline_layout_info,
             nullptr,
             &rv->pipeline_layout_) != VK_SUCCESS)
@@ -234,7 +234,7 @@ vkpong::create_pipeline(vulkan_device* device, vulkan_swap_chain* swap_chain)
     create_info.layout = rv->pipeline_layout_;
 
     create_info.pNext = &rendering_create_info;
-    if (vkCreateGraphicsPipelines(device->logical,
+    if (vkCreateGraphicsPipelines(device->logical(),
             VK_NULL_HANDLE,
             1,
             &create_info,
