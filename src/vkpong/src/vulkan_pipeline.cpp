@@ -66,7 +66,7 @@ vkpong::vulkan_pipeline::vulkan_pipeline(vulkan_device* device,
 }
 
 vkpong::vulkan_pipeline::vulkan_pipeline(vulkan_pipeline&& other) noexcept
-    : device_{other.device_}
+    : device_{std::exchange(other.device_, nullptr)}
     , pipeline_layout_{std::exchange(other.pipeline_layout_, nullptr)}
     , pipeline_{std::exchange(other.pipeline_, nullptr)}
 {
@@ -74,13 +74,9 @@ vkpong::vulkan_pipeline::vulkan_pipeline(vulkan_pipeline&& other) noexcept
 
 vkpong::vulkan_pipeline::~vulkan_pipeline()
 {
-    if (pipeline_)
+    if (device_)
     {
         vkDestroyPipeline(device_->logical(), pipeline_, nullptr);
-    }
-
-    if (pipeline_layout_)
-    {
         vkDestroyPipelineLayout(device_->logical(), pipeline_layout_, nullptr);
     }
 }

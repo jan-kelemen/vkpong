@@ -173,9 +173,35 @@ vkpong::vulkan_device::vulkan_device(VkPhysicalDevice physical_device,
 {
 }
 
+vkpong::vulkan_device::vulkan_device(vulkan_device&& other) noexcept
+    : physical_device_{other.physical_device_}
+    , logical_device_{std::exchange(other.logical_device_, nullptr)}
+    , graphics_family_{other.graphics_family_}
+    , present_family_{other.present_family_}
+    , max_msaa_samples_{other.max_msaa_samples_}
+{
+}
+
 vkpong::vulkan_device::~vulkan_device()
 {
     vkDestroyDevice(logical_device_, nullptr);
+}
+
+vkpong::vulkan_device& vkpong::vulkan_device::operator=(
+    vulkan_device&& other) noexcept
+{
+    using std::swap;
+
+    if (this != &other)
+    {
+        swap(physical_device_, other.physical_device_);
+        swap(logical_device_, other.logical_device_);
+        swap(graphics_family_, other.graphics_family_);
+        swap(present_family_, other.present_family_);
+        swap(max_msaa_samples_, other.max_msaa_samples_);
+    }
+
+    return *this;
 }
 
 vkpong::vulkan_device vkpong::create_device(vulkan_context const& context)

@@ -38,7 +38,7 @@ namespace vkpong
 
         vulkan_swap_chain(vulkan_swap_chain const&) = delete;
 
-        vulkan_swap_chain(vulkan_swap_chain&&) noexcept = delete;
+        vulkan_swap_chain(vulkan_swap_chain&& other) noexcept;
 
     public: // Destruction
         ~vulkan_swap_chain();
@@ -69,7 +69,7 @@ namespace vkpong
     public: // Operators
         vulkan_swap_chain& operator=(vulkan_swap_chain const&) = delete;
 
-        vulkan_swap_chain& operator=(vulkan_swap_chain&&) noexcept = delete;
+        vulkan_swap_chain& operator=(vulkan_swap_chain&& other) noexcept;
 
     private: // Helpers
         void create_chain_and_images();

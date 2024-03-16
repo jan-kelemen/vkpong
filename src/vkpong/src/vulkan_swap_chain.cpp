@@ -254,13 +254,32 @@ vkpong::vulkan_swap_chain::vulkan_swap_chain(GLFWwindow* window,
     glfwSetFramebufferSizeCallback(window_, framebuffer_resize_callback);
 }
 
-vkpong::vulkan_swap_chain::~vulkan_swap_chain()
+vkpong::vulkan_swap_chain::vulkan_swap_chain(vulkan_swap_chain&& other) noexcept
+    : window_{other.window_}
+    , context_{other.context_}
+    , device_{std::exchange(other.device_, nullptr)}
+    , image_format_{other.image_format_}
+    , extent_{other.extent_}
+    , chain{std::exchange(other.chain, nullptr)}
+    , images_{std::move(other.images_)}
+    , image_views_{std::move(other.image_views_)}
+    , image_syncs_{std::move(other.image_syncs_)}
+    , color_image_{std::exchange(other.color_image_, nullptr)}
+    , color_image_memory_{std::exchange(other.color_image_memory_, nullptr)}
+    , color_image_view_{std::exchange(other.color_image_view_, nullptr)}
+    , graphics_queue_{other.graphics_queue_}
+    , present_queue_{other.present_queue_}
 {
-    image_syncs_.clear();
-    cleanup();
 }
 
-// Interface
+vkpong::vulkan_swap_chain::~vulkan_swap_chain()
+{
+    if (device_)
+    {
+        image_syncs_.clear();
+        cleanup();
+    }
+}
 
 bool vkpong::vulkan_swap_chain::is_multisampled() const noexcept
 {
@@ -373,6 +392,31 @@ void vkpong::vulkan_swap_chain::framebuffer_resize_callback(GLFWwindow* window,
     auto* const swap_chain{
         reinterpret_cast<vulkan_swap_chain*>(glfwGetWindowUserPointer(window))};
     swap_chain->framebuffer_resized_ = true;
+}
+
+vkpong::vulkan_swap_chain& vkpong::vulkan_swap_chain::operator=(
+    vulkan_swap_chain&& other) noexcept
+{
+    using std::swap;
+
+    if (this != &other)
+    {
+        swap(window_, other.window_);
+        swap(context_, other.context_);
+        swap(device_, other.device_);
+        swap(image_format_, other.image_format_);
+        swap(extent_, other.extent_);
+        swap(chain, other.chain);
+        swap(images_, other.images_);
+        swap(image_views_, other.image_views_);
+        swap(color_image_, other.color_image_);
+        swap(color_image_memory_, other.color_image_memory_);
+        swap(color_image_view_, other.color_image_view_);
+        swap(graphics_queue_, other.graphics_queue_);
+        swap(present_queue_, other.present_queue_);
+    }
+
+    return *this;
 }
 
 void vkpong::vulkan_swap_chain::create_chain_and_images()

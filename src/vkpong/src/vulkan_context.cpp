@@ -128,6 +128,22 @@ namespace
     }
 } // namespace
 
+vkpong::vulkan_context::vulkan_context(VkInstance instance,
+    std::optional<VkDebugUtilsMessengerEXT> debug_messenger,
+    VkSurfaceKHR surface)
+    : instance_{instance}
+    , debug_messenger_{debug_messenger}
+    , surface_{surface}
+{
+}
+
+vkpong::vulkan_context::vulkan_context(vulkan_context&& other) noexcept
+    : instance_{std::exchange(other.instance_, nullptr)}
+    , debug_messenger_{std::exchange(other.debug_messenger_, {})}
+    , surface_{std::exchange(other.surface_, nullptr)}
+{
+}
+
 vkpong::vulkan_context::~vulkan_context()
 {
     if (surface_)
@@ -143,6 +159,21 @@ vkpong::vulkan_context::~vulkan_context()
     }
 
     vkDestroyInstance(instance_, nullptr);
+}
+
+vkpong::vulkan_context& vkpong::vulkan_context::operator=(
+    vulkan_context&& other) noexcept
+{
+    using std::swap;
+
+    if (this != &other)
+    {
+        swap(instance_, other.instance_);
+        swap(debug_messenger_, other.debug_messenger_);
+        swap(surface_, other.surface_);
+    }
+
+    return *this;
 }
 
 vkpong::vulkan_context vkpong::create_context(GLFWwindow* const window,

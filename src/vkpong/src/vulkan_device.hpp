@@ -55,15 +55,6 @@ namespace vkpong
     vulkan_device create_device(vulkan_context const& context);
 } // namespace vkpong
 
-inline vkpong::vulkan_device::vulkan_device(vulkan_device&& other) noexcept
-    : physical_device_{other.physical_device_}
-    , logical_device_{std::exchange(other.logical_device_, nullptr)}
-    , graphics_family_{other.graphics_family_}
-    , present_family_{other.present_family_}
-    , max_msaa_samples_{other.max_msaa_samples_}
-{
-}
-
 inline constexpr VkPhysicalDevice
 vkpong::vulkan_device::physical() const noexcept
 {
@@ -90,23 +81,6 @@ inline constexpr VkSampleCountFlagBits
 vkpong::vulkan_device::max_msaa_samples() const noexcept
 {
     return max_msaa_samples_;
-}
-
-inline vkpong::vulkan_device& vkpong::vulkan_device::operator=(
-    vulkan_device&& other) noexcept
-{
-    using std::swap;
-
-    if (this != &other)
-    {
-        swap(physical_device_, other.physical_device_);
-        swap(logical_device_, other.logical_device_);
-        swap(graphics_family_, other.graphics_family_);
-        swap(present_family_, other.present_family_);
-        swap(max_msaa_samples_, other.max_msaa_samples_);
-    }
-
-    return *this;
 }
 
 #endif // !VKPONG_VULKAN_DEVICE_INCLUDED
