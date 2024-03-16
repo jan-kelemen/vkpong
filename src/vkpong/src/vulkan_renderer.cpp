@@ -119,42 +119,6 @@ namespace
         }
     }
 
-    std::pair<VkBuffer, VkDeviceMemory> create_vertex_and_index_buffer(
-        vkpong::vulkan_device* const device)
-    {
-        VkBufferCreateInfo buffer_info{};
-        buffer_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-        buffer_info.size = sizeof(vertices[0]) * vertices.size() +
-            sizeof(indices[0]) * indices.size();
-        buffer_info.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT |
-            VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
-        buffer_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-
-        return vkpong::create_buffer(device->physical(),
-            device->logical(),
-            buffer_info.size,
-            buffer_info.usage,
-            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
-                VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-    }
-
-    std::pair<VkBuffer, VkDeviceMemory> create_instance_buffer(
-        vkpong::vulkan_device* const device)
-    {
-        VkBufferCreateInfo buffer_info{};
-        buffer_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-        buffer_info.size = sizeof(instance_data) * 2;
-        buffer_info.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
-        buffer_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-
-        return vkpong::create_buffer(device->physical(),
-            device->logical(),
-            buffer_info.size,
-            buffer_info.usage,
-            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
-                VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-    }
-
     VkDescriptorPool create_descriptor_pool(vkpong::vulkan_device* const device)
     {
         constexpr auto count{vkpong::count_cast(
@@ -270,34 +234,33 @@ vkpong::vulkan_renderer::vulkan_renderer(
     , swap_chain_{std::move(swap_chain)}
     , command_pool_{create_command_pool(device_.get())}
     , command_buffers_{vulkan_swap_chain::max_frames_in_flight}
+    , vertex_and_index_buffer_{device_.get(),
+          sizeof(vertices[0]) * vertices.size() +
+              sizeof(indices[0]) * indices.size(),
+          VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
+          VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+              VK_MEMORY_PROPERTY_HOST_COHERENT_BIT}
     , descriptor_set_layout_{create_descriptor_set_layout(device_.get())}
     , descriptor_pool_{create_descriptor_pool(device_.get())}
 {
-    vulkan_pipeline_builder pipeline_builder{device_.get(),
-        swap_chain_->image_format()};
-
-    pipeline_builder.add_shader(VK_SHADER_STAGE_VERTEX_BIT, "vert.spv", "main");
-    pipeline_builder.add_shader(VK_SHADER_STAGE_FRAGMENT_BIT,
-        "frag.spv",
-        "main");
-    pipeline_builder.with_rasterization_samples(device_->max_msaa_samples());
-    pipeline_builder.add_vertex_input(vertex::binding_description(),
-        vertex::attribute_descriptions());
-    pipeline_builder.with_push_constants(
-        VkPushConstantRange{.stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
-            .offset = 0,
-            .size = sizeof(push_consts)});
-    pipeline_builder.add_descriptor_set_layout(descriptor_set_layout_);
-
-    pipeline_ = std::make_unique<vulkan_pipeline>(pipeline_builder.build());
+    pipeline_ = std::make_unique<vulkan_pipeline>(
+        vulkan_pipeline_builder{device_.get(), swap_chain_->image_format()}
+            .add_shader(VK_SHADER_STAGE_VERTEX_BIT, "vert.spv", "main")
+            .add_shader(VK_SHADER_STAGE_FRAGMENT_BIT, "frag.spv", "main")
+            .with_rasterization_samples(device_->max_msaa_samples())
+            .add_vertex_input(vertex::binding_description(),
+                vertex::attribute_descriptions())
+            .with_push_constants(
+                VkPushConstantRange{.stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
+                    .offset = 0,
+                    .size = sizeof(push_consts)})
+            .add_descriptor_set_layout(descriptor_set_layout_)
+            .build());
 
     create_command_buffers(device_.get(),
         command_pool_,
         vulkan_swap_chain::max_frames_in_flight,
         command_buffers_);
-
-    std::tie(vertex_and_index_buffer_, vertex_and_index_memory_) =
-        create_vertex_and_index_buffer(device_.get());
 
     descriptor_sets_.resize(vulkan_swap_chain::max_frames_in_flight);
     create_descriptor_sets(device_.get(),
@@ -308,13 +271,21 @@ vkpong::vulkan_renderer::vulkan_renderer(
     for (int i{}; i != vulkan_swap_chain::max_frames_in_flight; ++i)
     {
         instance_buffers_.emplace_back(device_.get(),
+            sizeof(instance_data) * 2,
             VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-            sizeof(instance_data) * 2);
+            VK_MEMORY_PROPERTY_HOST_COHERENT_BIT |
+                VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
 
         auto const& buffer{uniform_buffers_.emplace_back(device_.get(),
+            sizeof(uniform_buffer_object),
             VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-            sizeof(uniform_buffer_object))};
-        bind_descriptor_set(device_.get(), descriptor_sets_[i], buffer.buffer);
+            VK_MEMORY_PROPERTY_HOST_COHERENT_BIT |
+                VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
+            true)};
+
+        bind_descriptor_set(device_.get(),
+            descriptor_sets_[i],
+            buffer.buffer());
     }
 }
 
@@ -330,9 +301,6 @@ vkpong::vulkan_renderer::~vulkan_renderer()
     uniform_buffers_.clear();
 
     instance_buffers_.clear();
-
-    vkDestroyBuffer(device_->logical(), vertex_and_index_buffer_, nullptr);
-    vkFreeMemory(device_->logical(), vertex_and_index_memory_, nullptr);
 
     vkDestroyCommandPool(device_->logical(), command_pool_, nullptr);
 }
@@ -437,27 +405,18 @@ void vkpong::vulkan_renderer::record_command_buffer(
         VK_PIPELINE_BIND_POINT_GRAPHICS,
         pipeline_->pipeline());
 
-    void* data{};
-    if (vkMapMemory(device_->logical(),
-            vertex_and_index_memory_,
-            0,
-            sizeof(vertices[0]) * vertices.size(),
-            0,
-            &data) != VK_SUCCESS)
-    {
-        throw std::runtime_error{"unable to map buffer memory!"};
-    }
     size_t const vertices_size{sizeof(vertices[0]) * vertices.size()};
-    memcpy(data, vertices.data(), vertices_size);
+    vertex_and_index_buffer_.fill(0,
+        std::span{reinterpret_cast<std::byte const*>(vertices.data()),
+            vertices_size});
 
     size_t const indices_size{sizeof(indices[0]) * indices.size()};
-    memcpy(reinterpret_cast<std::byte*>(data) + vertices_size,
-        indices.data(),
-        indices_size);
-    vkUnmapMemory(device_->logical(), vertex_and_index_memory_);
+    vertex_and_index_buffer_.fill(vertices_size,
+        std::span{reinterpret_cast<std::byte const*>(indices.data()),
+            indices_size});
 
-    std::array vertex_buffer{vertex_and_index_buffer_};
-    std::array instance_buffer{instance_buffers_[current_frame_].buffer};
+    std::array vertex_buffer{vertex_and_index_buffer_.buffer()};
+    std::array instance_buffer{instance_buffers_[current_frame_].buffer()};
     std::array const offsets{VkDeviceSize{0}};
     vkCmdBindVertexBuffers(command_buffer,
         0,
@@ -471,7 +430,7 @@ void vkpong::vulkan_renderer::record_command_buffer(
         offsets.data());
 
     vkCmdBindIndexBuffer(command_buffer,
-        vertex_and_index_buffer_,
+        vertex_and_index_buffer_.buffer(),
         vertices_size,
         VK_INDEX_TYPE_UINT16);
 
@@ -549,7 +508,8 @@ void vkpong::vulkan_renderer::record_command_buffer(
     }
 }
 
-void vkpong::vulkan_renderer::update_uniform_buffer(mapped_buffer& buffer)
+void vkpong::vulkan_renderer::update_uniform_buffer(
+    vkpong::vulkan_buffer& buffer)
 {
     uniform_buffer_object ubo{};
     ubo.model = glm::translate(glm::mat4{1.0f}, {.9f, .0f, .0f});
@@ -561,55 +521,17 @@ void vkpong::vulkan_renderer::update_uniform_buffer(mapped_buffer& buffer)
     ubo.projection[2][2] = 1;
     ubo.projection[3][3] = 3;
 
-    memcpy(buffer.mapped_memory, &ubo, sizeof(uniform_buffer_object));
+    buffer.fill(0,
+        std::span{reinterpret_cast<std::byte const*>(&ubo), sizeof(ubo)});
 }
 
-void vkpong::vulkan_renderer::update_instance_buffer(mapped_buffer& buffer)
+void vkpong::vulkan_renderer::update_instance_buffer(
+    vkpong::vulkan_buffer& buffer)
 {
     std::array data{instance_data{.offset = glm::vec2(-50.f, .0f)},
         instance_data{.offset = glm::vec2(50.f, .0f)}};
 
-    memcpy(buffer.mapped_memory, data.data(), sizeof(data));
-}
-
-vkpong::vulkan_renderer::mapped_buffer::mapped_buffer(vulkan_device* device,
-    VkBufferUsageFlags usage,
-    size_t size)
-    : device_{device}
-{
-    std::tie(buffer, device_memory) = create_buffer(device_->physical(),
-        device_->logical(),
-        size,
-        usage,
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
-            VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-
-    if (vkMapMemory(device_->logical(),
-            device_memory,
-            0,
-            size,
-            0,
-            &mapped_memory) != VK_SUCCESS)
-    {
-        throw std::runtime_error{"unable to map memory!"};
-    }
-}
-
-vkpong::vulkan_renderer::mapped_buffer::mapped_buffer(
-    mapped_buffer&& other) noexcept
-    : device_{std::exchange(other.device_, nullptr)}
-    , buffer{std::exchange(other.buffer, {})}
-    , device_memory{std::exchange(other.device_memory, {})}
-    , mapped_memory{std::exchange(other.mapped_memory, {})}
-{
-}
-
-vkpong::vulkan_renderer::mapped_buffer::~mapped_buffer()
-{
-    if (device_memory != nullptr)
-    {
-        vkUnmapMemory(device_->logical(), device_memory);
-        vkDestroyBuffer(device_->logical(), buffer, nullptr);
-        vkFreeMemory(device_->logical(), device_memory, nullptr);
-    }
+    buffer.fill(0,
+        std::span{reinterpret_cast<std::byte const*>(data.data()),
+            sizeof(instance_data) * data.size()});
 }

@@ -1,6 +1,8 @@
 #ifndef VKPONG_VULKAN_RENDERER_INCLUDED
 #define VKPONG_VULKAN_RENDERER_INLCUDED
 
+#include <vulkan_buffer.hpp>
+
 #include <vulkan/vulkan_core.h>
 
 #include <memory>
@@ -38,40 +40,13 @@ namespace vkpong
 
         vulkan_renderer& operator=(vulkan_renderer&&) noexcept = delete;
 
-    private: // Types
-        struct [[nodiscard]] mapped_buffer final
-        {
-        public: // Data
-            VkBuffer buffer{};
-            VkDeviceMemory device_memory{};
-            void* mapped_memory{};
-
-        public: // Construction
-            mapped_buffer(vulkan_device* device,
-                VkBufferUsageFlags usage,
-                size_t size);
-
-            mapped_buffer(mapped_buffer const&) = delete;
-            mapped_buffer(mapped_buffer&& other) noexcept;
-
-        public: // Destruction
-            ~mapped_buffer();
-
-        public: // Operators
-            mapped_buffer& operator=(mapped_buffer const&) = delete;
-            mapped_buffer& operator=(mapped_buffer&& other) noexcept = delete;
-
-        private:
-            vulkan_device* device_;
-        };
-
     private: // Helpers
         void record_command_buffer(VkCommandBuffer& command_buffer,
             VkDescriptorSet const& descriptor_set,
             uint32_t image_index);
 
-        void update_uniform_buffer(mapped_buffer& buffer);
-        void update_instance_buffer(mapped_buffer& buffer);
+        void update_uniform_buffer(vulkan_buffer& buffer);
+        void update_instance_buffer(vulkan_buffer& buffer);
 
     private: // Data
         std::unique_ptr<vulkan_context> context_;
@@ -82,10 +57,9 @@ namespace vkpong
         VkCommandPool command_pool_{};
         std::vector<VkCommandBuffer> command_buffers_{};
 
-        VkBuffer vertex_and_index_buffer_{};
-        VkDeviceMemory vertex_and_index_memory_{};
-        std::vector<mapped_buffer> instance_buffers_;
-        std::vector<mapped_buffer> uniform_buffers_;
+        vulkan_buffer vertex_and_index_buffer_;
+        std::vector<vulkan_buffer> instance_buffers_;
+        std::vector<vulkan_buffer> uniform_buffers_;
 
         VkDescriptorSetLayout descriptor_set_layout_{};
         VkDescriptorPool descriptor_pool_{};

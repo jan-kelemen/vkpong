@@ -242,7 +242,7 @@ vkpong::vulkan_pipeline vkpong::vulkan_pipeline_builder::build()
     return {device_, pipeline_layout, pipeline};
 }
 
-void vkpong::vulkan_pipeline_builder::add_shader(
+vkpong::vulkan_pipeline_builder& vkpong::vulkan_pipeline_builder::add_shader(
     VkShaderStageFlagBits const stage,
     std::filesystem::path const& path,
     std::string_view entry_point)
@@ -253,9 +253,11 @@ void vkpong::vulkan_pipeline_builder::add_shader(
     shaders_.emplace_back(stage,
         create_shader_module(device_->logical(), read_file(path)),
         std::move(name));
+    return *this;
 }
 
-void vkpong::vulkan_pipeline_builder::add_vertex_input(
+vkpong::vulkan_pipeline_builder&
+vkpong::vulkan_pipeline_builder::add_vertex_input(
     std::span<VkVertexInputBindingDescription const> binding_descriptions,
     std::span<VkVertexInputAttributeDescription const> attribute_descriptions)
 {
@@ -268,24 +270,32 @@ void vkpong::vulkan_pipeline_builder::add_vertex_input(
         binding_descriptions);
     vertex_input_attributes_.insert_range(vertex_input_attributes_.cend(),
         attribute_descriptions);
+    return *this;
 }
 
-void vkpong::vulkan_pipeline_builder::add_descriptor_set_layout(
+vkpong::vulkan_pipeline_builder&
+vkpong::vulkan_pipeline_builder::add_descriptor_set_layout(
     VkDescriptorSetLayout const descriptor_set_layout)
 {
     descriptor_set_layouts_.emplace_back(descriptor_set_layout);
+    return *this;
 }
 
-void vkpong::vulkan_pipeline_builder::with_rasterization_samples(
+vkpong::vulkan_pipeline_builder&
+vkpong::vulkan_pipeline_builder::with_rasterization_samples(
     VkSampleCountFlagBits const samples)
 {
     rasterization_samples_ = samples;
+    return *this;
 }
 
-void vkpong::vulkan_pipeline_builder::with_push_constants(
+vkpong::vulkan_pipeline_builder&
+vkpong::vulkan_pipeline_builder::with_push_constants(
     VkPushConstantRange const push_constants)
 {
     push_constants_ = push_constants;
+
+    return *this;
 }
 
 void vkpong::vulkan_pipeline_builder::cleanup()

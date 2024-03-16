@@ -60,21 +60,24 @@ namespace vkpong
     public: // Interface
         [[nodiscard]] vulkan_pipeline build();
 
-        void add_shader(VkShaderStageFlagBits stage,
+        vulkan_pipeline_builder& add_shader(VkShaderStageFlagBits stage,
             std::filesystem::path const& path,
             std::string_view entry_point);
 
-        void add_vertex_input(std::span<VkVertexInputBindingDescription const>
-                                  binding_description,
+        vulkan_pipeline_builder& add_vertex_input(
+            std::span<VkVertexInputBindingDescription const>
+                binding_description,
             std::span<VkVertexInputAttributeDescription const>
                 attribute_descriptions);
 
-        void add_descriptor_set_layout(
+        vulkan_pipeline_builder& add_descriptor_set_layout(
             VkDescriptorSetLayout descriptor_set_layout);
 
-        void with_rasterization_samples(VkSampleCountFlagBits samples);
+        vulkan_pipeline_builder& with_rasterization_samples(
+            VkSampleCountFlagBits samples);
 
-        void with_push_constants(VkPushConstantRange push_constants);
+        vulkan_pipeline_builder& with_push_constants(
+            VkPushConstantRange push_constants);
 
     private: // Helpers
         void cleanup();
