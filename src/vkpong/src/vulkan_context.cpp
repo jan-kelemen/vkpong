@@ -197,6 +197,8 @@ vkpong::vulkan_context vkpong::create_context(GLFWwindow* const window,
         glfw_extensions + glfw_extension_count};
 
     bool has_debug_utils_extension{setup_validation_layers};
+    VkDebugUtilsMessengerCreateInfoEXT debug_create_info;
+    populate_debug_messenger_create_info(debug_create_info);
     if (setup_validation_layers)
     {
         if (check_validation_layer_support())
@@ -206,9 +208,6 @@ vkpong::vulkan_context vkpong::create_context(GLFWwindow* const window,
             create_info.ppEnabledLayerNames = validation_layers.data();
 
             required_extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
-
-            VkDebugUtilsMessengerCreateInfoEXT debug_create_info;
-            populate_debug_messenger_create_info(debug_create_info);
             create_info.pNext = &debug_create_info;
         }
         else
