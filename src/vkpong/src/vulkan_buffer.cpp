@@ -47,7 +47,11 @@ vkpong::vulkan_buffer::vulkan_buffer(vulkan_device* device,
         throw std::runtime_error{"failed to allocate buffer memory!"};
     }
 
-    vkBindBufferMemory(device_->logical(), buffer_, device_memory_, 0);
+    if (vkBindBufferMemory(device_->logical(), buffer_, device_memory_, 0) !=
+        VK_SUCCESS)
+    {
+        throw std::runtime_error{"failed to bind buffer memory!"};
+    }
 
     if (keep_mapped_)
     {

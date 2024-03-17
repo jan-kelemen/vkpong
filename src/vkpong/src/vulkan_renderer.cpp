@@ -283,6 +283,29 @@ vkpong::vulkan_renderer::vulkan_renderer(
             .add_descriptor_set_layout(descriptor_set_layout_)
             .build());
 
+    if (is_multisampled())
+    {
+        // color image
+        create_image(device_->physical(),
+            device_->logical(),
+            swap_chain_->extent(),
+            1,
+            device_->max_msaa_samples(),
+            swap_chain_->image_format(),
+            VK_IMAGE_TILING_OPTIMAL,
+            VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT |
+                VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+            VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+            color_image_,
+            color_image_memory_);
+
+        color_image_view_ = create_image_view(device_->logical(),
+            color_image_,
+            swap_chain_->image_format(),
+            VK_IMAGE_ASPECT_COLOR_BIT,
+            1);
+    }
+
     create_command_buffers(device_.get(),
         command_pool_,
         vulkan_swap_chain::max_frames_in_flight,
@@ -329,6 +352,10 @@ vkpong::vulkan_renderer::~vulkan_renderer()
     instance_buffers_.clear();
 
     vkDestroyCommandPool(device_->logical(), command_pool_, nullptr);
+
+    vkDestroyImageView(device_->logical(), color_image_view_, nullptr);
+    vkDestroyImage(device_->logical(), color_image_, nullptr);
+    vkFreeMemory(device_->logical(), color_image_memory_, nullptr);
 }
 
 void vkpong::vulkan_renderer::draw()
@@ -382,10 +409,9 @@ void vkpong::vulkan_renderer::record_command_buffer(
     color_attachment_info.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
     color_attachment_info.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
     color_attachment_info.clearValue = clear_value;
-    if (swap_chain_->is_multisampled())
+    if (is_multisampled())
     {
-        color_attachment_info.imageView =
-            swap_chain_->intermediate_image_view();
+        color_attachment_info.imageView = color_image_view_;
         color_attachment_info.resolveMode = VK_RESOLVE_MODE_AVERAGE_BIT;
         color_attachment_info.resolveImageView =
             swap_chain_->image_view(image_index);
@@ -511,4 +537,9 @@ void vkpong::vulkan_renderer::update_instance_buffer(
         instance_data{.offset = glm::vec2(.5f, .0f)}};
 
     buffer.fill(0, as_bytes(data));
+}
+
+bool vkpong::vulkan_renderer::is_multisampled() const
+{
+    return device_->max_msaa_samples() != VK_SAMPLE_COUNT_1_BIT;
 }

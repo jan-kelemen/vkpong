@@ -48,11 +48,17 @@ namespace vkpong
         void update_uniform_buffer(vulkan_buffer& buffer);
         void update_instance_buffer(vulkan_buffer& buffer);
 
+        bool is_multisampled() const;
+
     private: // Data
         std::unique_ptr<vulkan_context> context_;
         std::unique_ptr<vulkan_device> device_;
         std::unique_ptr<vulkan_swap_chain> swap_chain_;
         std::unique_ptr<vulkan_pipeline> pipeline_;
+
+        VkImage color_image_{};
+        VkDeviceMemory color_image_memory_{};
+        VkImageView color_image_view_{};
 
         VkCommandPool command_pool_{};
         std::vector<VkCommandBuffer> command_buffers_{};

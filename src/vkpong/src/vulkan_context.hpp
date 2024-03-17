@@ -1,6 +1,7 @@
 #ifndef VKPONG_VULKAN_CONTEXT_INCLUDED
 #define VKPONG_VULKAN_CONTEXT_INCLUDED
 
+#include <vulkan/vulkan.hpp>
 #include <vulkan/vulkan_core.h>
 
 #include <optional>

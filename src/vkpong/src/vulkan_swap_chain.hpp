@@ -54,11 +54,6 @@ namespace vkpong
         [[nodiscard]] constexpr VkImageView image_view(
             uint32_t const image_index) const noexcept;
 
-        [[nodiscard]] bool is_multisampled() const noexcept;
-
-        [[nodiscard]] constexpr VkImageView
-        intermediate_image_view() const noexcept;
-
         [[nodiscard]] bool acquire_next_image(uint32_t current_frame,
             uint32_t& image_index);
 
@@ -113,9 +108,6 @@ namespace vkpong
         std::vector<VkImage> images_;
         std::vector<VkImageView> image_views_;
         std::vector<image_sync> image_syncs_{};
-        VkImage color_image_;
-        VkDeviceMemory color_image_memory_;
-        VkImageView color_image_view_;
 
         VkQueue graphics_queue_{};
         VkQueue present_queue_{};
@@ -146,12 +138,6 @@ inline constexpr VkImageView vkpong::vulkan_swap_chain::image_view(
     uint32_t const image_index) const noexcept
 {
     return image_views_[image_index];
-}
-
-inline constexpr VkImageView
-vkpong::vulkan_swap_chain::intermediate_image_view() const noexcept
-{
-    return color_image_view_;
 }
 
 #endif // !VKPONG_VULKAN_SWAP_CHAIN_INCLUDED
