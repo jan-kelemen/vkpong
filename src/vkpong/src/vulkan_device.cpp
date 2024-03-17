@@ -24,6 +24,7 @@ namespace
 
     constexpr VkPhysicalDeviceVulkan13Features device_13_features{
         .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES,
+        .synchronization2 = VK_TRUE,
         .dynamicRendering = VK_TRUE};
 
     struct [[nodiscard]] queue_family_indices final

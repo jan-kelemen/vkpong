@@ -223,6 +223,32 @@ namespace
             nullptr);
     }
 
+    void transition_image(VkImage const image,
+        VkCommandBuffer const command_buffer,
+        VkImageLayout const old_layout,
+        VkImageLayout const new_layout)
+    {
+        VkImageMemoryBarrier2 barrier{};
+        barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2,
+        barrier.srcStageMask = VK_PIPELINE_STAGE_2_NONE,
+        barrier.srcAccessMask = VK_ACCESS_2_NONE,
+        barrier.oldLayout = old_layout, barrier.newLayout = new_layout,
+        barrier.image = image,
+        barrier.subresourceRange = {
+            .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+            .baseMipLevel = 0,
+            .levelCount = 1,
+            .baseArrayLayer = 0,
+            .layerCount = 1,
+        };
+
+        VkDependencyInfo dependency{};
+        dependency.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
+        dependency.imageMemoryBarrierCount = 1;
+        dependency.pImageMemoryBarriers = &barrier;
+
+        vkCmdPipelineBarrier2(command_buffer, &dependency);
+    }
 } // namespace
 
 vkpong::vulkan_renderer::vulkan_renderer(
@@ -342,30 +368,10 @@ void vkpong::vulkan_renderer::record_command_buffer(
         throw std::runtime_error{"unable to begin command buffer recording!"};
     }
 
-    VkImageMemoryBarrier bimage_memory_barrier{
-        .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
-        .dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
-        .oldLayout = VK_IMAGE_LAYOUT_UNDEFINED,
-        .newLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-        .image = swap_chain_->image(image_index),
-        .subresourceRange = {
-            .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-            .baseMipLevel = 0,
-            .levelCount = 1,
-            .baseArrayLayer = 0,
-            .layerCount = 1,
-        }};
-
-    vkCmdPipelineBarrier(command_buffer,
-        VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
-        VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-        0,
-        0,
-        nullptr,
-        0,
-        nullptr,
-        1,
-        &bimage_memory_barrier);
+    transition_image(swap_chain_->image(image_index),
+        command_buffer,
+        VK_IMAGE_LAYOUT_UNDEFINED,
+        VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 
     constexpr VkClearValue clear_value{{{0.0f, 4.0f, 0.0f, 1.0f}}};
     VkRenderingAttachmentInfoKHR color_attachment_info{};
@@ -477,30 +483,10 @@ void vkpong::vulkan_renderer::record_command_buffer(
 
     vkCmdEndRendering(command_buffer);
 
-    VkImageMemoryBarrier const image_memory_barrier{
-        .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
-        .srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
-        .oldLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-        .newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
-        .image = swap_chain_->image(image_index),
-        .subresourceRange = {
-            .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-            .baseMipLevel = 0,
-            .levelCount = 1,
-            .baseArrayLayer = 0,
-            .layerCount = 1,
-        }};
-
-    vkCmdPipelineBarrier(command_buffer,
-        VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-        VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
-        0,
-        0,
-        nullptr,
-        0,
-        nullptr,
-        1,
-        &image_memory_barrier);
+    transition_image(swap_chain_->image(image_index),
+        command_buffer,
+        VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+        VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
 
     if (vkEndCommandBuffer(command_buffer) != VK_SUCCESS)
     {
