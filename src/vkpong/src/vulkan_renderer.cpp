@@ -63,10 +63,10 @@ namespace
         }
     };
 
-    std::vector<vertex> const vertices{{{-.5f, -.5f}},
-        {{.5f, -.5f}},
-        {{.5f, .5f}},
-        {{-.5f, .5f}}};
+    std::vector<vertex> const vertices{{{-.01f, -.2f}},
+        {{.01f, -.2f}},
+        {{.01f, .2f}},
+        {{-.01f, .2f}}};
 
     std::vector<uint16_t> const indices{0, 1, 2, 2, 3, 0};
 
@@ -412,14 +412,8 @@ void vkpong::vulkan_renderer::record_command_buffer(
         pipeline_->pipeline());
 
     size_t const vertices_size{sizeof(vertices[0]) * vertices.size()};
-    vertex_and_index_buffer_.fill(0,
-        std::span{reinterpret_cast<std::byte const*>(vertices.data()),
-            vertices_size});
-
-    size_t const indices_size{sizeof(indices[0]) * indices.size()};
-    vertex_and_index_buffer_.fill(vertices_size,
-        std::span{reinterpret_cast<std::byte const*>(indices.data()),
-            indices_size});
+    vertex_and_index_buffer_.fill(0, as_bytes(vertices));
+    vertex_and_index_buffer_.fill(vertices_size, as_bytes(indices));
 
     std::array vertex_buffer{vertex_and_index_buffer_.buffer()};
     std::array instance_buffer{instance_buffers_[current_frame_].buffer()};
@@ -498,26 +492,23 @@ void vkpong::vulkan_renderer::update_uniform_buffer(
     vkpong::vulkan_buffer& buffer)
 {
     uniform_buffer_object ubo{};
-    ubo.model = glm::translate(glm::mat4{1.0f}, {.9f, .0f, .0f});
+    ubo.model = glm::mat4{1.0f};
 
     ubo.view = glm::mat4{1.0f};
 
-    ubo.projection[0][0] = .05f;
+    ubo.projection[0][0] = glm::radians(110.f);
     ubo.projection[1][1] = -1;
     ubo.projection[2][2] = 1;
-    ubo.projection[3][3] = 3;
+    ubo.projection[3][3] = 1;
 
-    buffer.fill(0,
-        std::span{reinterpret_cast<std::byte const*>(&ubo), sizeof(ubo)});
+    buffer.fill(0, as_bytes(ubo));
 }
 
 void vkpong::vulkan_renderer::update_instance_buffer(
     vkpong::vulkan_buffer& buffer)
 {
-    std::array data{instance_data{.offset = glm::vec2(-50.f, .0f)},
-        instance_data{.offset = glm::vec2(50.f, .0f)}};
+    std::array data{instance_data{.offset = glm::vec2(-.5f, .0f)},
+        instance_data{.offset = glm::vec2(.5f, .0f)}};
 
-    buffer.fill(0,
-        std::span{reinterpret_cast<std::byte const*>(data.data()),
-            sizeof(instance_data) * data.size()});
+    buffer.fill(0, as_bytes(data));
 }

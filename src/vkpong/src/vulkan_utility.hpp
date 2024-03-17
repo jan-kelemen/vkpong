@@ -4,7 +4,10 @@
 #include <vulkan/vulkan_core.h>
 
 #include <cassert>
+#include <optional>
+#include <span>
 #include <utility>
+#include <vector>
 
 namespace vkpong
 {
@@ -25,6 +28,21 @@ namespace vkpong
         VkDeviceSize size,
         VkBufferUsageFlags usage,
         VkMemoryPropertyFlags properties);
+
+    template<typename T>
+    std::span<std::byte const> as_bytes(T const& value,
+        size_t const size = sizeof(T))
+    {
+        return {reinterpret_cast<std::byte const*>(&value), size};
+    }
+
+    template<typename T>
+    std::span<std::byte const> as_bytes(std::vector<T> const& value,
+        std::optional<size_t> const elements = std::nullopt)
+    {
+        return {reinterpret_cast<std::byte const*>(value.data()),
+            elements.value_or(value.size()) * sizeof(T)};
+    }
 } // namespace vkpong
 
 #endif // !VKPONG_VULKAN_UTILITY_INCLUDED
