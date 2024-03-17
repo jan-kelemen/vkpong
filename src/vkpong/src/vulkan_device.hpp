@@ -3,7 +3,7 @@
 
 #include <vulkan/vulkan_core.h>
 
-#include <utility>
+#include <cstdint>
 
 namespace vkpong
 {

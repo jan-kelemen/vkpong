@@ -6,6 +6,7 @@
 #include <cassert>
 #include <cstring>
 #include <stdexcept>
+#include <utility>
 
 vkpong::vulkan_buffer::vulkan_buffer(vulkan_device* device,
     VkDeviceSize size,

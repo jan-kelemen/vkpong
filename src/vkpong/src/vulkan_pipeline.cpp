@@ -1,15 +1,17 @@
 #include <vulkan_pipeline.hpp>
 
-#include <scope_exit.hpp>
 #include <vulkan_device.hpp>
-#include <vulkan_swap_chain.hpp>
 #include <vulkan_utility.hpp>
 
+#include <algorithm>
 #include <array>
+#include <cstddef>
+#include <cstdint>
 #include <filesystem>
 #include <fstream>
-#include <iostream>
 #include <span>
+#include <stdexcept>
+#include <utility>
 #include <vector>
 
 namespace

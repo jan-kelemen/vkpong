@@ -4,7 +4,7 @@ from conan.tools.cmake import CMake, CMakeDeps, CMakeToolchain, cmake_layout
 require_conan_version = ">=2.0"
 
 class VKPongConan(ConanFile):
-    name = "vp"
+    name = "vkpong"
     settings = "os", "compiler", "build_type", "arch"
     version = "0.1"
 

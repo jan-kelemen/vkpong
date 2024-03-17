@@ -1,7 +1,6 @@
 #ifndef VKPONG_VULKAN_CONTEXT_INCLUDED
 #define VKPONG_VULKAN_CONTEXT_INCLUDED
 
-#include <vulkan/vulkan.hpp>
 #include <vulkan/vulkan_core.h>
 
 #include <optional>
@@ -13,7 +12,7 @@ namespace vkpong
     class [[nodiscard]] vulkan_context final
     {
     public: // Construction
-        vulkan_context(VkInstance instance_,
+        vulkan_context(VkInstance instance,
             std::optional<VkDebugUtilsMessengerEXT> debug_messenger,
             VkSurfaceKHR surface);
 

@@ -24,7 +24,7 @@ namespace vkpong
         window(window&&) noexcept = delete;
 
     public: // Interface
-        void loop(std::function<void()> callback);
+        void loop(std::function<void()> const& callback);
 
         [[nodiscard]] GLFWwindow* handle() const noexcept;
 

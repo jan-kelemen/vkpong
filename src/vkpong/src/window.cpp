@@ -1,7 +1,7 @@
 #include <window.hpp>
 
 // clang-format off
-#include <vulkan/vulkan.h>
+#include <vulkan/vulkan.h> // IWYU pragma: keep
 #include <GLFW/glfw3.h>
 
 // clang-format on
@@ -14,7 +14,7 @@ vkpong::window::window(int width, int height)
     impl_.reset(glfwCreateWindow(width, height, "vkpong", nullptr, nullptr));
 }
 
-void vkpong::window::loop(std::function<void()> callback)
+void vkpong::window::loop(std::function<void()> const& callback)
 {
     while (!glfwWindowShouldClose(impl_.get()))
     {

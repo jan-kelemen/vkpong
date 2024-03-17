@@ -5,6 +5,7 @@
 
 #include <vulkan/vulkan_core.h>
 
+#include <cstdint>
 #include <memory>
 #include <vector>
 
@@ -48,7 +49,7 @@ namespace vkpong
         void update_uniform_buffer(vulkan_buffer& buffer);
         void update_instance_buffer(vulkan_buffer& buffer);
 
-        bool is_multisampled() const;
+        [[nodiscard]] bool is_multisampled() const;
 
     private: // Data
         std::unique_ptr<vulkan_context> context_;

@@ -8,9 +8,13 @@
 
 #include <algorithm>
 #include <array>
+#include <cstddef>
+#include <cstdint>
 #include <limits>
+#include <ranges>
 #include <span>
 #include <stdexcept>
+#include <utility>
 
 namespace
 {
@@ -18,10 +22,10 @@ namespace
         std::span<VkSurfaceFormatKHR const> available_formats)
     {
         if (auto const it{std::ranges::find_if(available_formats,
-                [](VkSurfaceFormatKHR const& f)
+                [](VkSurfaceFormatKHR const& format)
                 {
-                    return f.format == VK_FORMAT_B8G8R8A8_SRGB &&
-                        f.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
+                    return format.format == VK_FORMAT_B8G8R8A8_SRGB &&
+                        format.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
                 })};
             it != available_formats.cend())
         {
@@ -73,7 +77,7 @@ namespace
         VkSemaphoreCreateInfo semaphore_info{};
         semaphore_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
 
-        VkSemaphore rv;
+        VkSemaphore rv{};
         if (vkCreateSemaphore(device->logical(),
                 &semaphore_info,
                 nullptr,
@@ -95,7 +99,7 @@ namespace
             fence_info.flags = VK_FENCE_CREATE_SIGNALED_BIT;
         }
 
-        VkFence rv;
+        VkFence rv{};
         if (vkCreateFence(device->logical(), &fence_info, nullptr, &rv) !=
             VK_SUCCESS)
         {
@@ -210,7 +214,7 @@ bool vkpong::vulkan_swap_chain::acquire_next_image(uint32_t const current_frame,
         VK_TRUE,
         UINT64_MAX);
 
-    VkResult result{vkAcquireNextImageKHR(device_->logical(),
+    VkResult const result{vkAcquireNextImageKHR(device_->logical(),
         chain,
         timeout,
         sync.image_available,
@@ -320,8 +324,10 @@ vkpong::vulkan_swap_chain& vkpong::vulkan_swap_chain::operator=(
         swap(chain, other.chain);
         swap(images_, other.images_);
         swap(image_views_, other.image_views_);
+        swap(image_syncs_, other.image_syncs_);
         swap(graphics_queue_, other.graphics_queue_);
         swap(present_queue_, other.present_queue_);
+        swap(framebuffer_resized_, other.framebuffer_resized_);
     }
 
     return *this;
@@ -426,26 +432,26 @@ void vkpong::vulkan_swap_chain::cleanup()
 vkpong::vulkan_swap_chain::image_sync::image_sync(
     vkpong::vulkan_device* const device)
     : device_{device}
+    , image_available(create_semaphore(device))
+    , render_finished(create_semaphore(device))
+    , in_flight(create_fence(device, true))
 {
-    image_available = create_semaphore(device);
-    render_finished = create_semaphore(device);
-    in_flight = create_fence(device, true);
 }
 
 vkpong::vulkan_swap_chain::image_sync::image_sync(image_sync&& other) noexcept
-    : device_{other.device_}
-    , image_available{other.image_available}
-    , render_finished{other.render_finished}
-    , in_flight{other.in_flight}
+    : device_{std::exchange(other.device_, nullptr)}
+    , image_available{std::exchange(other.image_available, nullptr)}
+    , render_finished{std::exchange(other.render_finished, nullptr)}
+    , in_flight{std::exchange(other.in_flight, nullptr)}
 {
-    other.image_available = {};
-    other.render_finished = {};
-    other.in_flight = {};
 }
 
 vkpong::vulkan_swap_chain::image_sync::~image_sync()
 {
-    vkDestroyFence(device_->logical(), in_flight, nullptr);
-    vkDestroySemaphore(device_->logical(), render_finished, nullptr);
-    vkDestroySemaphore(device_->logical(), image_available, nullptr);
+    if (device_)
+    {
+        vkDestroyFence(device_->logical(), in_flight, nullptr);
+        vkDestroySemaphore(device_->logical(), render_finished, nullptr);
+        vkDestroySemaphore(device_->logical(), image_available, nullptr);
+    }
 }

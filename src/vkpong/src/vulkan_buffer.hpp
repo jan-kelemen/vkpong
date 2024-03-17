@@ -3,8 +3,7 @@
 
 #include <vulkan/vulkan_core.h>
 
-#include <memory>
-#include <optional>
+#include <cstddef>
 #include <span>
 
 namespace vkpong
@@ -18,7 +17,7 @@ namespace vkpong
     {
     public: // Construction
         vulkan_buffer(vulkan_device* device,
-            VkDeviceSize buffer_size,
+            VkDeviceSize size,
             VkBufferCreateFlags usage,
             VkMemoryPropertyFlags memory_properties,
             bool keep_mapped = false);

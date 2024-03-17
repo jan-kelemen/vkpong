@@ -3,17 +3,17 @@
 
 #include <vulkan/vulkan_core.h>
 
-#include <array>
 #include <filesystem>
-#include <memory>
 #include <optional>
 #include <span>
+#include <string>
+#include <string_view>
+#include <tuple>
 #include <vector>
 
 namespace vkpong
 {
     class vulkan_device;
-    class vulkan_swap_chain;
 } // namespace vkpong
 
 namespace vkpong
@@ -54,6 +54,10 @@ namespace vkpong
     public: // Construction
         vulkan_pipeline_builder(vulkan_device* device, VkFormat image_format);
 
+        vulkan_pipeline_builder(vulkan_pipeline_builder const&) = delete;
+
+        vulkan_pipeline_builder(vulkan_pipeline_builder&&) noexcept = delete;
+
     public: // Destruction
         ~vulkan_pipeline_builder();
 
@@ -66,7 +70,7 @@ namespace vkpong
 
         vulkan_pipeline_builder& add_vertex_input(
             std::span<VkVertexInputBindingDescription const>
-                binding_description,
+                binding_descriptions,
             std::span<VkVertexInputAttributeDescription const>
                 attribute_descriptions);
 
@@ -78,6 +82,13 @@ namespace vkpong
 
         vulkan_pipeline_builder& with_push_constants(
             VkPushConstantRange push_constants);
+
+    public: // Operators
+        vulkan_pipeline_builder& operator=(
+            vulkan_pipeline_builder const&) = delete;
+
+        vulkan_pipeline_builder& operator=(
+            vulkan_pipeline_builder&&) noexcept = delete;
 
     private: // Helpers
         void cleanup();

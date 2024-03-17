@@ -6,6 +6,11 @@
 
 #include <spdlog/spdlog.h>
 
+#include <exception>
+#include <functional>
+#include <memory>
+#include <utility>
+
 #ifdef NDEBUG
 constexpr bool enable_validation_layers{false};
 #else

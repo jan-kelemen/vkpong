@@ -3,7 +3,7 @@
 
 #include <vulkan/vulkan_core.h>
 
-#include <memory>
+#include <cstdint>
 #include <vector>
 
 struct GLFWwindow;
@@ -49,10 +49,10 @@ namespace vkpong
         [[nodiscard]] constexpr VkFormat image_format() const noexcept;
 
         [[nodiscard]] constexpr VkImage image(
-            uint32_t const image_index) const noexcept;
+            uint32_t image_index) const noexcept;
 
         [[nodiscard]] constexpr VkImageView image_view(
-            uint32_t const image_index) const noexcept;
+            uint32_t image_index) const noexcept;
 
         [[nodiscard]] bool acquire_next_image(uint32_t current_frame,
             uint32_t& image_index);
@@ -84,10 +84,10 @@ namespace vkpong
             VkFence in_flight{};
 
         public: // Construction
-            image_sync(vkpong::vulkan_device* device);
+            explicit image_sync(vkpong::vulkan_device* device);
 
             image_sync(image_sync const&) = delete;
-            image_sync(image_sync&&) noexcept;
+            image_sync(image_sync&& other) noexcept;
 
         public: // Destruction
             ~image_sync();

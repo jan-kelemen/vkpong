@@ -1,6 +1,5 @@
 #include <vulkan_context.hpp>
 
-#include <scope_exit.hpp>
 #include <vulkan_utility.hpp>
 
 #include <GLFW/glfw3.h>
@@ -9,8 +8,9 @@
 
 #include <algorithm>
 #include <array>
-#include <cassert>
+#include <cstdint>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 namespace

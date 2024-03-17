@@ -12,8 +12,6 @@
 
 #include <array>
 #include <cassert>
-#include <chrono>
-#include <limits>
 #include <span>
 #include <stdexcept>
 
@@ -88,7 +86,7 @@ namespace
         pool_info.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
         pool_info.queueFamilyIndex = device->graphics_family();
 
-        VkCommandPool rv;
+        VkCommandPool rv{};
         if (vkCreateCommandPool(device->logical(), &pool_info, nullptr, &rv) !=
             VK_SUCCESS)
         {
@@ -160,7 +158,7 @@ namespace
         layout_info.bindingCount = 1;
         layout_info.pBindings = &ubo_layout_binding;
 
-        VkDescriptorSetLayout rv;
+        VkDescriptorSetLayout rv{};
         if (vkCreateDescriptorSetLayout(device->logical(),
                 &layout_info,
                 nullptr,
