@@ -146,14 +146,14 @@ namespace
         VkSampleCountFlags const counts =
             properties.limits.framebufferColorSampleCounts &
             properties.limits.framebufferDepthSampleCounts;
-        for (auto count : {VK_SAMPLE_COUNT_64_BIT,
+        for (VkSampleCountFlagBits count : {VK_SAMPLE_COUNT_64_BIT,
                  VK_SAMPLE_COUNT_32_BIT,
                  VK_SAMPLE_COUNT_16_BIT,
                  VK_SAMPLE_COUNT_8_BIT,
                  VK_SAMPLE_COUNT_4_BIT,
                  VK_SAMPLE_COUNT_2_BIT})
         {
-            if (counts & count)
+            if (static_cast<int>(counts) & count)
             {
                 return count;
             }

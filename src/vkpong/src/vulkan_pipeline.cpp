@@ -266,10 +266,12 @@ vkpong::vulkan_pipeline_builder::add_vertex_input(
     vertex_input_attributes_.reserve(
         vertex_input_attributes_.size() + attribute_descriptions.size());
 
-    vertex_input_binding_.insert_range(vertex_input_binding_.cend(),
-        binding_descriptions);
-    vertex_input_attributes_.insert_range(vertex_input_attributes_.cend(),
-        attribute_descriptions);
+    vertex_input_binding_.insert(vertex_input_binding_.cend(),
+        binding_descriptions.cbegin(),
+        binding_descriptions.cend());
+    vertex_input_attributes_.insert(vertex_input_attributes_.cend(),
+        attribute_descriptions.cbegin(),
+        attribute_descriptions.cend());
     return *this;
 }
 

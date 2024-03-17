@@ -15,7 +15,7 @@ namespace vkpong
         static constexpr int default_height = 600;
 
     public: // construction
-        window() : window{default_width, default_height} {};
+        window() : window{default_width, default_height} { }
 
         window(int width, int height);
 

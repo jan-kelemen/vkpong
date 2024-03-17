@@ -317,7 +317,7 @@ vkpong::vulkan_renderer::vulkan_renderer(
         descriptor_pool_,
         descriptor_sets_);
 
-    for (int i{}; i != vulkan_swap_chain::max_frames_in_flight; ++i)
+    for (size_t i{}; i != size_t{vulkan_swap_chain::max_frames_in_flight}; ++i)
     {
         instance_buffers_.emplace_back(device_.get(),
             sizeof(instance_data) * 2,
@@ -423,13 +423,12 @@ void vkpong::vulkan_renderer::record_command_buffer(
         color_attachment_info.imageView = swap_chain_->image_view(image_index);
     }
 
-    VkRenderingInfoKHR const render_info{
-        .sType = VK_STRUCTURE_TYPE_RENDERING_INFO_KHR,
-        .renderArea = {{0, 0}, swap_chain_->extent()},
-        .layerCount = 1,
-        .colorAttachmentCount = 1,
-        .pColorAttachments = &color_attachment_info,
-    };
+    VkRenderingInfoKHR render_info{};
+    render_info.sType = VK_STRUCTURE_TYPE_RENDERING_INFO_KHR;
+    render_info.renderArea = {{0, 0}, swap_chain_->extent()};
+    render_info.layerCount = 1;
+    render_info.colorAttachmentCount = 1;
+    render_info.pColorAttachments = &color_attachment_info;
 
     vkCmdBeginRendering(command_buffer, &render_info);
 

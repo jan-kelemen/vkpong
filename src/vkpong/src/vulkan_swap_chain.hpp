@@ -78,12 +78,13 @@ namespace vkpong
         struct [[nodiscard]] image_sync final
         {
         public: // Data
+            vulkan_device* device_{};
             VkSemaphore image_available{};
             VkSemaphore render_finished{};
             VkFence in_flight{};
 
         public: // Construction
-            image_sync(vkpong::vulkan_device* const device);
+            image_sync(vkpong::vulkan_device* device);
 
             image_sync(image_sync const&) = delete;
             image_sync(image_sync&&) noexcept;
@@ -94,9 +95,6 @@ namespace vkpong
         public: // Operators
             image_sync& operator=(image_sync const&) = delete;
             image_sync& operator=(image_sync&&) noexcept = delete;
-
-        private: // Data
-            vulkan_device* device_{};
         };
 
         GLFWwindow* window_{};

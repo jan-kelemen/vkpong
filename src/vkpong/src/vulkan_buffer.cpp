@@ -4,6 +4,7 @@
 #include <vulkan_utility.hpp>
 
 #include <cassert>
+#include <cstring>
 #include <stdexcept>
 
 vkpong::vulkan_buffer::vulkan_buffer(vulkan_device* device,
