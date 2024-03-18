@@ -47,9 +47,14 @@ namespace vkpong
             uint32_t image_index);
 
         void update_uniform_buffer(vulkan_buffer& buffer);
+
         void update_instance_buffer(vulkan_buffer& buffer);
 
         [[nodiscard]] bool is_multisampled() const;
+
+        void recreate_images();
+
+        void cleanup_images();
 
     private: // Data
         std::unique_ptr<vulkan_context> context_;

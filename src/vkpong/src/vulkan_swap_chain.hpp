@@ -57,9 +57,12 @@ namespace vkpong
         [[nodiscard]] bool acquire_next_image(uint32_t current_frame,
             uint32_t& image_index);
 
-        void submit_command_buffer(VkCommandBuffer const* command_buffer,
+        [[nodiscard]] bool submit_command_buffer(
+            VkCommandBuffer const* command_buffer,
             uint32_t current_frame,
             uint32_t image_index);
+
+        void recreate();
 
     public: // Operators
         vulkan_swap_chain& operator=(vulkan_swap_chain const&) = delete;
@@ -68,11 +71,8 @@ namespace vkpong
 
     private: // Helpers
         void create_chain_and_images();
-        void cleanup();
-        void recreate();
 
-        static void
-        framebuffer_resize_callback(GLFWwindow* window, int width, int height);
+        void cleanup();
 
     private:
         struct [[nodiscard]] image_sync final
@@ -109,8 +109,6 @@ namespace vkpong
 
         VkQueue graphics_queue_{};
         VkQueue present_queue_{};
-
-        bool framebuffer_resized_{};
     };
 
 } // namespace vkpong

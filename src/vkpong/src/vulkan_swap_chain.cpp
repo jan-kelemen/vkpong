@@ -172,9 +172,6 @@ vkpong::vulkan_swap_chain::vulkan_swap_chain(GLFWwindow* window,
         device_->present_family(),
         0,
         &present_queue_);
-
-    glfwSetWindowUserPointer(window_, this);
-    glfwSetFramebufferSizeCallback(window_, framebuffer_resize_callback);
 }
 
 vkpong::vulkan_swap_chain::vulkan_swap_chain(vulkan_swap_chain&& other) noexcept
@@ -234,7 +231,7 @@ bool vkpong::vulkan_swap_chain::acquire_next_image(uint32_t const current_frame,
     return true;
 }
 
-void vkpong::vulkan_swap_chain::submit_command_buffer(
+bool vkpong::vulkan_swap_chain::submit_command_buffer(
     VkCommandBuffer const* const command_buffer,
     uint32_t const current_frame,
     uint32_t const image_index)
@@ -272,16 +269,17 @@ void vkpong::vulkan_swap_chain::submit_command_buffer(
     present_info.pImageIndices = &image_index;
 
     VkResult result{vkQueuePresentKHR(present_queue_, &present_info)};
-    if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR ||
-        framebuffer_resized_)
+    if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR)
     {
-        framebuffer_resized_ = false;
         recreate();
+        return false;
     }
     else if (result != VK_SUCCESS)
     {
         throw std::runtime_error{"failed to present swap chain image!"};
     }
+
+    return true;
 }
 
 void vkpong::vulkan_swap_chain::recreate()
@@ -298,15 +296,6 @@ void vkpong::vulkan_swap_chain::recreate()
     vkDeviceWaitIdle(device_->logical());
     cleanup();
     create_chain_and_images();
-}
-
-void vkpong::vulkan_swap_chain::framebuffer_resize_callback(GLFWwindow* window,
-    [[maybe_unused]] int width,
-    [[maybe_unused]] int height)
-{
-    auto* const swap_chain{
-        reinterpret_cast<vulkan_swap_chain*>(glfwGetWindowUserPointer(window))};
-    swap_chain->framebuffer_resized_ = true;
 }
 
 vkpong::vulkan_swap_chain& vkpong::vulkan_swap_chain::operator=(
@@ -327,7 +316,6 @@ vkpong::vulkan_swap_chain& vkpong::vulkan_swap_chain::operator=(
         swap(image_syncs_, other.image_syncs_);
         swap(graphics_queue_, other.graphics_queue_);
         swap(present_queue_, other.present_queue_);
-        swap(framebuffer_resized_, other.framebuffer_resized_);
     }
 
     return *this;
