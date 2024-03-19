@@ -1,5 +1,6 @@
 #include <vulkan_renderer.hpp>
 
+#include <game.hpp>
 #include <vulkan_context.hpp>
 #include <vulkan_device.hpp>
 #include <vulkan_pipeline.hpp>
@@ -333,7 +334,7 @@ vkpong::vulkan_renderer::~vulkan_renderer()
     cleanup_images();
 }
 
-void vkpong::vulkan_renderer::draw()
+void vkpong::vulkan_renderer::draw(vkpong::game const& state)
 {
     uint32_t image_index{};
     if (!swap_chain_->acquire_next_image(current_frame_, image_index))
@@ -350,7 +351,7 @@ void vkpong::vulkan_renderer::draw()
     record_command_buffer(command_buffer, descriptor_set, image_index);
 
     update_uniform_buffer(uniform_buffers_[current_frame_]);
-    update_instance_buffer(instance_buffers_[current_frame_]);
+    update_instance_buffer(state, instance_buffers_[current_frame_]);
 
     if (!swap_chain_->submit_command_buffer(&command_buffer,
             current_frame_,
@@ -509,11 +510,12 @@ void vkpong::vulkan_renderer::update_uniform_buffer(
     buffer.fill(0, as_bytes(ubo));
 }
 
-void vkpong::vulkan_renderer::update_instance_buffer(
+void vkpong::vulkan_renderer::update_instance_buffer(vkpong::game const& state,
     vkpong::vulkan_buffer& buffer)
 {
-    std::array data{instance_data{.offset = glm::vec2(-.5f, .0f)},
-        instance_data{.offset = glm::vec2(.5f, .0f)}};
+    std::array data{
+        instance_data{.offset = glm::vec2(-.5f, state.player_position)},
+        instance_data{.offset = glm::vec2(.5f, state.npc_position)}};
 
     buffer.fill(0, as_bytes(data));
 }

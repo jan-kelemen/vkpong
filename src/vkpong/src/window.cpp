@@ -3,7 +3,6 @@
 // clang-format off
 #include <vulkan/vulkan.h> // IWYU pragma: keep
 #include <GLFW/glfw3.h>
-
 // clang-format on
 
 vkpong::window::window(int width, int height)

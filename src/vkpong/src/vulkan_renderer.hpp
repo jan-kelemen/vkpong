@@ -11,6 +11,8 @@
 
 namespace vkpong
 {
+    class game;
+
     class vulkan_context;
     class vulkan_device;
     class vulkan_swap_chain;
@@ -34,7 +36,7 @@ namespace vkpong
         ~vulkan_renderer();
 
     public: // Interface
-        void draw();
+        void draw(game const& state);
 
     public: // Operators
         vulkan_renderer& operator=(vulkan_renderer const&) = delete;
@@ -48,7 +50,7 @@ namespace vkpong
 
         void update_uniform_buffer(vulkan_buffer& buffer);
 
-        void update_instance_buffer(vulkan_buffer& buffer);
+        void update_instance_buffer(game const& state, vulkan_buffer& buffer);
 
         [[nodiscard]] bool is_multisampled() const;
 
