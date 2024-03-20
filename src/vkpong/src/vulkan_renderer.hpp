@@ -24,9 +24,9 @@ namespace vkpong
     class [[nodiscard]] vulkan_renderer final
     {
     public: // Construction
-        vulkan_renderer(std::unique_ptr<vulkan_context> context,
-            std::unique_ptr<vulkan_device> device,
-            std::unique_ptr<vulkan_swap_chain> swap_chain);
+        vulkan_renderer(vulkan_context* context,
+            vulkan_device* device,
+            vulkan_swap_chain* swap_chain);
 
         vulkan_renderer(vulkan_renderer const&) = delete;
 
@@ -59,9 +59,10 @@ namespace vkpong
         void cleanup_images();
 
     private: // Data
-        std::unique_ptr<vulkan_context> context_;
-        std::unique_ptr<vulkan_device> device_;
-        std::unique_ptr<vulkan_swap_chain> swap_chain_;
+        vulkan_context* context_;
+        vulkan_device* device_;
+        vulkan_swap_chain* swap_chain_;
+
         std::unique_ptr<vulkan_pipeline> pipeline_;
 
         VkImage color_image_{};

@@ -269,9 +269,11 @@ bool vkpong::vulkan_swap_chain::submit_command_buffer(
     present_info.pImageIndices = &image_index;
 
     VkResult result{vkQueuePresentKHR(present_queue_, &present_info)};
-    if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR)
+    if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR ||
+        framebuffer_resized_)
     {
         recreate();
+        framebuffer_resized_ = false;
         return false;
     }
     else if (result != VK_SUCCESS)

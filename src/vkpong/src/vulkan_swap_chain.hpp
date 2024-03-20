@@ -62,7 +62,7 @@ namespace vkpong
             uint32_t current_frame,
             uint32_t image_index);
 
-        void recreate();
+        void resized();
 
     public: // Operators
         vulkan_swap_chain& operator=(vulkan_swap_chain const&) = delete;
@@ -73,6 +73,8 @@ namespace vkpong
         void create_chain_and_images();
 
         void cleanup();
+
+        void recreate();
 
     private:
         struct [[nodiscard]] image_sync final
@@ -107,6 +109,8 @@ namespace vkpong
         std::vector<VkImageView> image_views_;
         std::vector<image_sync> image_syncs_{};
 
+        bool framebuffer_resized_{};
+
         VkQueue graphics_queue_{};
         VkQueue present_queue_{};
     };
@@ -134,6 +138,11 @@ inline constexpr VkImageView vkpong::vulkan_swap_chain::image_view(
     uint32_t const image_index) const noexcept
 {
     return image_views_[image_index];
+}
+
+inline void vkpong::vulkan_swap_chain::resized()
+{
+    framebuffer_resized_ = true;
 }
 
 #endif // !VKPONG_VULKAN_SWAP_CHAIN_INCLUDED

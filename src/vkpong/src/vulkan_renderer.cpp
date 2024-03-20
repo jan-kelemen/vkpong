@@ -250,26 +250,25 @@ namespace
     }
 } // namespace
 
-vkpong::vulkan_renderer::vulkan_renderer(
-    std::unique_ptr<vulkan_context> context,
-    std::unique_ptr<vulkan_device> device,
-    std::unique_ptr<vulkan_swap_chain> swap_chain)
-    : context_{std::move(context)}
-    , device_{std::move(device)}
-    , swap_chain_{std::move(swap_chain)}
-    , command_pool_{create_command_pool(device_.get())}
+vkpong::vulkan_renderer::vulkan_renderer(vulkan_context* context,
+    vulkan_device* device,
+    vulkan_swap_chain* swap_chain)
+    : context_{context}
+    , device_{device}
+    , swap_chain_{swap_chain}
+    , command_pool_{create_command_pool(device)}
     , command_buffers_{vulkan_swap_chain::max_frames_in_flight}
-    , vertex_and_index_buffer_{device_.get(),
+    , vertex_and_index_buffer_{device,
           sizeof(vertices[0]) * vertices.size() +
               sizeof(indices[0]) * indices.size(),
           VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
           VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
               VK_MEMORY_PROPERTY_HOST_COHERENT_BIT}
-    , descriptor_set_layout_{create_descriptor_set_layout(device_.get())}
-    , descriptor_pool_{create_descriptor_pool(device_.get())}
+    , descriptor_set_layout_{create_descriptor_set_layout(device)}
+    , descriptor_pool_{create_descriptor_pool(device)}
 {
     pipeline_ = std::make_unique<vulkan_pipeline>(
-        vulkan_pipeline_builder{device_.get(), swap_chain_->image_format()}
+        vulkan_pipeline_builder{device_, swap_chain_->image_format()}
             .add_shader(VK_SHADER_STAGE_VERTEX_BIT, "vert.spv", "main")
             .add_shader(VK_SHADER_STAGE_FRAGMENT_BIT, "frag.spv", "main")
             .with_rasterization_samples(device_->max_msaa_samples())
@@ -284,35 +283,33 @@ vkpong::vulkan_renderer::vulkan_renderer(
 
     recreate_images();
 
-    create_command_buffers(device_.get(),
+    create_command_buffers(device_,
         command_pool_,
         vulkan_swap_chain::max_frames_in_flight,
         command_buffers_);
 
     descriptor_sets_.resize(vulkan_swap_chain::max_frames_in_flight);
-    create_descriptor_sets(device_.get(),
+    create_descriptor_sets(device_,
         descriptor_set_layout_,
         descriptor_pool_,
         descriptor_sets_);
 
     for (size_t i{}; i != size_t{vulkan_swap_chain::max_frames_in_flight}; ++i)
     {
-        instance_buffers_.emplace_back(device_.get(),
+        instance_buffers_.emplace_back(device_,
             sizeof(instance_data) * 2,
             VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
             VK_MEMORY_PROPERTY_HOST_COHERENT_BIT |
                 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
 
-        auto const& buffer{uniform_buffers_.emplace_back(device_.get(),
+        auto const& buffer{uniform_buffers_.emplace_back(device_,
             sizeof(uniform_buffer_object),
             VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
             VK_MEMORY_PROPERTY_HOST_COHERENT_BIT |
                 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
             true)};
 
-        bind_descriptor_set(device_.get(),
-            descriptor_sets_[i],
-            buffer.buffer());
+        bind_descriptor_set(device_, descriptor_sets_[i], buffer.buffer());
     }
 }
 
