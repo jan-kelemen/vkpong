@@ -18,5 +18,5 @@ void vkpong::game::update(vkpong::action act)
         player_position += vertical_delta;
     }
 
-    player_position = std::clamp(-1.f, player_position, 1.f);
+    player_position = std::clamp(player_position, -0.8f, 0.8f);
 }
