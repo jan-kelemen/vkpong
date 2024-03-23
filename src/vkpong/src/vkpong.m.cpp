@@ -71,11 +71,11 @@ namespace
             {
                 if (key == GLFW_KEY_UP)
                 {
-                    app->action(vkpong::action::up);
+                    app->action(vkpong::action::down);
                 }
                 else if (key == GLFW_KEY_DOWN)
                 {
-                    app->action(vkpong::action::down);
+                    app->action(vkpong::action::up);
                 }
             }
         }

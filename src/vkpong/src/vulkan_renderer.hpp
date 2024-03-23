@@ -64,6 +64,7 @@ namespace vkpong
         vulkan_swap_chain* swap_chain_;
 
         std::unique_ptr<vulkan_pipeline> pipeline_;
+        std::unique_ptr<vulkan_pipeline> ball_pipeline_;
 
         VkImage color_image_{};
         VkDeviceMemory color_image_memory_{};

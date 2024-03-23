@@ -23,10 +23,28 @@ target_sources(vkpong
         ${CMAKE_CURRENT_SOURCE_DIR}/src/window.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/window.hpp
     PRIVATE
-        ${CMAKE_CURRENT_SOURCE_DIR}/shaders/shader.vert
-        ${CMAKE_CURRENT_BINARY_DIR}/vert.spv
-        ${CMAKE_CURRENT_SOURCE_DIR}/shaders/shader.frag
+        ${CMAKE_CURRENT_BINARY_DIR}/ball.spv
         ${CMAKE_CURRENT_BINARY_DIR}/frag.spv
+        ${CMAKE_CURRENT_BINARY_DIR}/vert.spv
+        ${CMAKE_CURRENT_SOURCE_DIR}/shaders/ball.frag
+        ${CMAKE_CURRENT_SOURCE_DIR}/shaders/shader.vert
+        ${CMAKE_CURRENT_SOURCE_DIR}/shaders/shader.frag
+)
+
+add_custom_command(
+    OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/ball.spv
+    COMMAND 
+        ${GLSLC_EXE} ${CMAKE_CURRENT_SOURCE_DIR}/shaders/ball.frag -o ${CMAKE_CURRENT_BINARY_DIR}/ball.spv
+    DEPENDS
+        ${CMAKE_CURRENT_SOURCE_DIR}/shaders/ball.frag
+)
+
+add_custom_command(
+    OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/frag.spv
+    COMMAND 
+        ${GLSLC_EXE} ${CMAKE_CURRENT_SOURCE_DIR}/shaders/shader.frag -o ${CMAKE_CURRENT_BINARY_DIR}/frag.spv
+    DEPENDS
+        ${CMAKE_CURRENT_SOURCE_DIR}/shaders/shader.frag
 )
 
 add_custom_command(
@@ -37,13 +55,6 @@ add_custom_command(
         ${CMAKE_CURRENT_SOURCE_DIR}/shaders/shader.vert
 )
 
-add_custom_command(
-    OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/frag.spv
-    COMMAND 
-        ${GLSLC_EXE} ${CMAKE_CURRENT_SOURCE_DIR}/shaders/shader.frag -o ${CMAKE_CURRENT_BINARY_DIR}/frag.spv
-    DEPENDS
-        ${CMAKE_CURRENT_SOURCE_DIR}/shaders/shader.frag
-)
 
 target_include_directories(vkpong
     PRIVATE
@@ -88,10 +99,12 @@ source_group("Source Files"
 
 source_group("Shader Files"
     FILES
-        ${CMAKE_CURRENT_SOURCE_DIR}/shaders/shader.vert
+        ${CMAKE_CURRENT_SOURCE_DIR}/shaders/ball.frag
         ${CMAKE_CURRENT_SOURCE_DIR}/shaders/shader.frag
+        ${CMAKE_CURRENT_SOURCE_DIR}/shaders/shader.vert
 )
 
 set_property(TARGET vkpong 
     PROPERTY 
-        VS_DEBUGGER_WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+        VS_DEBUGGER_WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+)

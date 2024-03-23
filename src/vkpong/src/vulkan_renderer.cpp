@@ -23,10 +23,17 @@ namespace
         glm::fvec4 color[6];
     };
 
+    struct [[nodiscard]] ball_push_consts final
+    {
+        glm::fvec4 color[6];
+        glm::fvec2 resolution;
+    };
+
     struct [[nodiscard]] instance_data final
     {
         glm::fvec2 offset;
         glm::fvec2 dimension;
+        glm::fvec3 color;
     };
 
     struct [[nodiscard]] vertex final
@@ -62,6 +69,10 @@ namespace
                     .binding = 1,
                     .format = VK_FORMAT_R32G32_SFLOAT,
                     .offset = offsetof(instance_data, dimension)},
+                VkVertexInputAttributeDescription{.location = 3,
+                    .binding = 1,
+                    .format = VK_FORMAT_R32G32B32_SFLOAT,
+                    .offset = offsetof(instance_data, color)},
             };
 
             return descriptions;
@@ -280,10 +291,20 @@ vkpong::vulkan_renderer::vulkan_renderer(vulkan_context* context,
             .with_rasterization_samples(device_->max_msaa_samples())
             .add_vertex_input(vertex::binding_description(),
                 vertex::attribute_descriptions())
+            .add_descriptor_set_layout(descriptor_set_layout_)
+            .build());
+
+    ball_pipeline_ = std::make_unique<vulkan_pipeline>(
+        vulkan_pipeline_builder{device_, swap_chain_->image_format()}
+            .add_shader(VK_SHADER_STAGE_VERTEX_BIT, "vert.spv", "main")
+            .add_shader(VK_SHADER_STAGE_FRAGMENT_BIT, "ball.spv", "main")
+            .with_rasterization_samples(device_->max_msaa_samples())
+            .add_vertex_input(vertex::binding_description(),
+                vertex::attribute_descriptions())
             .with_push_constants(
-                VkPushConstantRange{.stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
+                VkPushConstantRange{.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
                     .offset = 0,
-                    .size = sizeof(push_consts)})
+                    .size = sizeof(ball_push_consts)})
             .add_descriptor_set_layout(descriptor_set_layout_)
             .build());
 
@@ -303,7 +324,7 @@ vkpong::vulkan_renderer::vulkan_renderer(vulkan_context* context,
     for (size_t i{}; i != size_t{vulkan_swap_chain::max_frames_in_flight}; ++i)
     {
         instance_buffers_.emplace_back(device_,
-            sizeof(instance_data) * 2,
+            sizeof(instance_data) * 3,
             VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
             VK_MEMORY_PROPERTY_HOST_COHERENT_BIT |
                 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
@@ -458,21 +479,6 @@ void vkpong::vulkan_renderer::record_command_buffer(
     scissor.extent = extent;
     vkCmdSetScissor(command_buffer, 0, 1, &scissor);
 
-    push_consts push_values{};
-    push_values.color[0].r = 0.5f;
-    push_values.color[1].g = 0.5f;
-    push_values.color[2].b = 0.5f;
-    push_values.color[3].r = 0.5f;
-    push_values.color[4].g = 0.5f;
-    push_values.color[5].b = 0.5f;
-
-    vkCmdPushConstants(command_buffer,
-        pipeline_->pipeline_layout(),
-        VK_SHADER_STAGE_VERTEX_BIT,
-        0,
-        sizeof(push_consts),
-        &push_values);
-
     vkCmdBindDescriptorSets(command_buffer,
         VK_PIPELINE_BIND_POINT_GRAPHICS,
         pipeline_->pipeline_layout(),
@@ -483,6 +489,28 @@ void vkpong::vulkan_renderer::record_command_buffer(
         nullptr);
 
     vkCmdDrawIndexed(command_buffer, count_cast(indices.size()), 2, 0, 0, 0);
+
+    vkCmdBindPipeline(command_buffer,
+        VK_PIPELINE_BIND_POINT_GRAPHICS,
+        ball_pipeline_->pipeline());
+
+    ball_push_consts ball_push_values{
+        .resolution = {extent.width, extent.height}};
+    ball_push_values.color[0].r = 0.5f;
+    ball_push_values.color[1].g = 0.5f;
+    ball_push_values.color[2].b = 0.5f;
+    ball_push_values.color[3].r = 0.5f;
+    ball_push_values.color[4].g = 0.5f;
+    ball_push_values.color[5].b = 0.5f;
+
+    vkCmdPushConstants(command_buffer,
+        ball_pipeline_->pipeline_layout(),
+        VK_SHADER_STAGE_FRAGMENT_BIT,
+        0,
+        sizeof(ball_push_consts),
+        &ball_push_values);
+
+    vkCmdDrawIndexed(command_buffer, count_cast(indices.size()), 1, 0, 0, 2);
 
     vkCmdEndRendering(command_buffer);
 
@@ -518,9 +546,15 @@ void vkpong::vulkan_renderer::update_instance_buffer(vkpong::game const& state,
 {
     std::array data{
         instance_data{.offset = glm::vec2(-.9f, state.player_position),
-            .dimension = glm::vec2(0.02f, 0.2f)},
+            .dimension = glm::vec2(0.02f, 0.2f),
+            .color = glm::vec3(.5f, 0, 0)},
         instance_data{.offset = glm::vec2(.9f, state.npc_position),
-            .dimension = glm::vec2(0.02f, 0.2f)}};
+            .dimension = glm::vec2(0.02f, 0.2f),
+            .color = glm::vec3(0, .5f, 0)},
+        instance_data{.offset = glm::vec2(state.ball_position.first + 0.2f,
+                          state.ball_position.second + 0.2f),
+            .dimension = glm::vec2(0.2f, 0.2f),
+            .color = glm::vec3(0, 0, .5f)}};
 
     buffer.fill(0, as_bytes(data));
 }
