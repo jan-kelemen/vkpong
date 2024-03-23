@@ -26,6 +26,7 @@ namespace
     struct [[nodiscard]] instance_data final
     {
         glm::fvec2 offset;
+        glm::fvec2 dimension;
     };
 
     struct [[nodiscard]] vertex final
@@ -56,16 +57,21 @@ namespace
                 VkVertexInputAttributeDescription{.location = 1,
                     .binding = 1,
                     .format = VK_FORMAT_R32G32_SFLOAT,
-                    .offset = offsetof(instance_data, offset)}};
+                    .offset = offsetof(instance_data, offset)},
+                VkVertexInputAttributeDescription{.location = 2,
+                    .binding = 1,
+                    .format = VK_FORMAT_R32G32_SFLOAT,
+                    .offset = offsetof(instance_data, dimension)},
+            };
 
             return descriptions;
         }
     };
 
-    std::vector<vertex> const vertices{{{-.01f, -.2f}},
-        {{.01f, -.2f}},
-        {{.01f, .2f}},
-        {{-.01f, .2f}}};
+    std::vector<vertex> const vertices{{{-1, -1}},
+        {{1, -1}},
+        {{1, 1}},
+        {{-1, 1}}};
 
     std::vector<uint16_t> const indices{0, 1, 2, 2, 3, 0};
 
@@ -511,8 +517,10 @@ void vkpong::vulkan_renderer::update_instance_buffer(vkpong::game const& state,
     vkpong::vulkan_buffer& buffer)
 {
     std::array data{
-        instance_data{.offset = glm::vec2(-.5f, state.player_position)},
-        instance_data{.offset = glm::vec2(.5f, state.npc_position)}};
+        instance_data{.offset = glm::vec2(-.9f, state.player_position),
+            .dimension = glm::vec2(0.02f, 0.2f)},
+        instance_data{.offset = glm::vec2(.9f, state.npc_position),
+            .dimension = glm::vec2(0.02f, 0.2f)}};
 
     buffer.fill(0, as_bytes(data));
 }

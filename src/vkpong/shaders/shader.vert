@@ -12,10 +12,11 @@ layout(binding = 0) uniform UniformBufferObject {
 
 layout(location = 0) in vec2 inPosition;
 layout(location = 1) in vec2 inOffset;
+layout(location = 2) in vec2 inDimensions;
 
 layout(location = 0) out vec3 fragColor;
 
 void main() {
-    gl_Position = ubo.proj * ubo.view * ubo.model * vec4(inPosition - inOffset, 0.0, 1.0);
+    gl_Position = vec4(inPosition * inDimensions - inOffset, 0.0, 1.0);
     fragColor = vec3(pushConsts.color[gl_VertexIndex]);
 }
