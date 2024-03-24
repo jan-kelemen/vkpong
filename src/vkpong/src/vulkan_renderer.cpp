@@ -493,6 +493,8 @@ void vkpong::vulkan_renderer::record_command_buffer(
     vkCmdBindPipeline(command_buffer,
         VK_PIPELINE_BIND_POINT_GRAPHICS,
         ball_pipeline_->pipeline());
+    vkCmdSetViewport(command_buffer, 0, 1, &viewport);
+    vkCmdSetScissor(command_buffer, 0, 1, &scissor);
 
     ball_push_consts ball_push_values{
         .resolution = {extent.width, extent.height}};
@@ -551,9 +553,9 @@ void vkpong::vulkan_renderer::update_instance_buffer(vkpong::game const& state,
         instance_data{.offset = glm::vec2(.9f, state.npc_position),
             .dimension = glm::vec2(0.02f, 0.2f),
             .color = glm::vec3(0, .5f, 0)},
-        instance_data{.offset = glm::vec2(state.ball_position.first + 0.2f,
-                          state.ball_position.second + 0.2f),
-            .dimension = glm::vec2(0.2f, 0.2f),
+        instance_data{.offset = glm::vec2(state.ball_position.first,
+                          -state.ball_position.second),
+            .dimension = glm::vec2(2, 2),
             .color = glm::vec3(0, 0, .5f)}};
 
     buffer.fill(0, as_bytes(data));

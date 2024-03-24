@@ -8,6 +8,7 @@
 #include <GLFW/glfw3.h>
 #include <spdlog/spdlog.h>
 
+#include <chrono>
 #include <exception>
 #include <functional>
 #include <memory>
@@ -48,7 +49,18 @@ namespace
     public: // Interface
         void run()
         {
-            window_.loop([this]() { renderer_.draw(game_); });
+            window_.loop(
+                [this]()
+                {
+                    if (auto const now{std::chrono::steady_clock::now()};
+                        (now - last_tick_time_) > std::chrono::milliseconds{16})
+                    {
+                        game_.tick();
+                        last_tick_time_ = now;
+                    }
+
+                    renderer_.draw(game_);
+                });
         }
 
     public: // Operators
@@ -101,6 +113,9 @@ namespace
         vkpong::vulkan_device device_;
         vkpong::vulkan_swap_chain swap_chain_;
         vkpong::vulkan_renderer renderer_;
+
+        std::chrono::steady_clock::time_point last_tick_time_{
+            std::chrono::steady_clock::now()};
     };
 } // namespace
 
