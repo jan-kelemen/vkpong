@@ -4,6 +4,10 @@ target_sources(vkpong
     PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/src/game.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/game.hpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/imgui_impl_glfw.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/imgui_impl_glfw.hpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/imgui_impl_vulkan.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/imgui_impl_vulkan.hpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/scope_exit.hpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/vkpong.m.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/vulkan_buffer.cpp
@@ -65,6 +69,7 @@ target_link_libraries(vkpong
     PRIVATE
         glfw
         glm::glm
+        imgui::imgui
         vulkan-headers::vulkan-headers
         Vulkan::Loader
         spdlog::spdlog
@@ -74,6 +79,8 @@ target_link_libraries(vkpong
 source_group("Header Files"
     FILES
         ${CMAKE_CURRENT_SOURCE_DIR}/src/game.hpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/imgui_impl_glfw.hpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/imgui_impl_vulkan.hpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/scope_exit.hpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/vulkan_buffer.hpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/vulkan_context.hpp
@@ -86,6 +93,8 @@ source_group("Header Files"
 source_group("Source Files"
     FILES
         ${CMAKE_CURRENT_SOURCE_DIR}/src/game.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/imgui_impl_glfw.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/imgui_impl_vulkan.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/vkpong.m.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/vulkan_buffer.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/vulkan_context.cpp

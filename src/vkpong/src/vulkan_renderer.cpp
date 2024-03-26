@@ -11,6 +11,10 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
+#include <imgui.h>
+#include <imgui_impl_glfw.hpp>
+#include <imgui_impl_vulkan.hpp>
+
 #include <array>
 #include <cassert>
 #include <span>
@@ -144,11 +148,20 @@ namespace
         uniform_buffer_pool_size.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
         uniform_buffer_pool_size.descriptorCount = count;
 
+        VkDescriptorPoolSize imgui_sampler_pool_size{};
+        imgui_sampler_pool_size.type =
+            VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        imgui_sampler_pool_size.descriptorCount = 1;
+
+        std::array pool_sizes{uniform_buffer_pool_size,
+            imgui_sampler_pool_size};
+
         VkDescriptorPoolCreateInfo pool_info{};
         pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-        pool_info.poolSizeCount = 1;
-        pool_info.pPoolSizes = &uniform_buffer_pool_size;
-        pool_info.maxSets = count;
+        pool_info.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
+        pool_info.poolSizeCount = vkpong::count_cast(pool_sizes.size());
+        pool_info.pPoolSizes = pool_sizes.data();
+        pool_info.maxSets = count + 1;
 
         VkDescriptorPool rv{};
         if (vkCreateDescriptorPool(device->logical(),
@@ -267,10 +280,12 @@ namespace
     }
 } // namespace
 
-vkpong::vulkan_renderer::vulkan_renderer(vulkan_context* context,
+vkpong::vulkan_renderer::vulkan_renderer(GLFWwindow* window,
+    vulkan_context* context,
     vulkan_device* device,
     vulkan_swap_chain* swap_chain)
-    : context_{context}
+    : window_{window}
+    , context_{context}
     , device_{device}
     , swap_chain_{swap_chain}
     , command_pool_{create_command_pool(device)}
@@ -338,11 +353,17 @@ vkpong::vulkan_renderer::vulkan_renderer(vulkan_context* context,
 
         bind_descriptor_set(device_, descriptor_sets_[i], buffer.buffer());
     }
+
+    init_imgui();
 }
 
 vkpong::vulkan_renderer::~vulkan_renderer()
 {
     vkDeviceWaitIdle(device_->logical());
+
+    ImGui_ImplVulkan_Shutdown();
+    ImGui_ImplGlfw_Shutdown();
+    ImGui::DestroyContext();
 
     vkDestroyDescriptorPool(device_->logical(), descriptor_pool_, nullptr);
     vkDestroyDescriptorSetLayout(device_->logical(),
@@ -386,6 +407,52 @@ void vkpong::vulkan_renderer::draw(vkpong::game const& state)
 
     current_frame_ =
         (current_frame_ + 1) % vulkan_swap_chain::max_frames_in_flight;
+}
+
+void vkpong::vulkan_renderer::init_imgui()
+{
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    ImGuiIO& io = ImGui::GetIO();
+    io.ConfigFlags |=
+        ImGuiConfigFlags_NavEnableKeyboard; // Enable Keyboard Controls
+
+    ImGui::StyleColorsDark();
+    ImGui::GetStyle().Colors[ImGuiCol_WindowBg] =
+        ImVec4(0.00f, 0.00f, 0.00f, 1.00f);
+    ImGui::GetStyle().Colors[ImGuiCol_TitleBg] =
+        ImVec4(0.27f, 0.27f, 0.54f, 1.00f);
+    ImGui::GetStyle().Colors[ImGuiCol_TitleBgActive] =
+        ImVec4(0.32f, 0.32f, 0.63f, 1.00f);
+
+    // Setup Platform/Renderer backends
+    ImGui_ImplGlfw_InitForVulkan(window_, true);
+
+    VkPipelineRenderingCreateInfoKHR rendering_create_info{};
+    rendering_create_info.sType =
+        VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO_KHR;
+    rendering_create_info.colorAttachmentCount = 1;
+    VkFormat const format{swap_chain_->image_format()};
+    rendering_create_info.pColorAttachmentFormats = &format;
+
+    ImGui_ImplVulkan_InitInfo init_info{};
+    init_info.Instance = context_->instance();
+    init_info.PhysicalDevice = device_->physical();
+    init_info.Device = device_->logical();
+    init_info.QueueFamily = device_->graphics_family();
+    init_info.Queue = swap_chain_->graphics_queue();
+    init_info.PipelineCache = VK_NULL_HANDLE;
+    init_info.DescriptorPool = descriptor_pool_;
+    init_info.RenderPass = VK_NULL_HANDLE;
+    init_info.Subpass = 0;
+    init_info.MinImageCount = 2;
+    init_info.ImageCount = vulkan_swap_chain::max_frames_in_flight;
+    init_info.MSAASamples = device_->max_msaa_samples();
+    init_info.Allocator = VK_NULL_HANDLE;
+    init_info.CheckVkResultFn = nullptr;
+    init_info.UseDynamicRendering = true;
+    init_info.PipelineRenderingCreateInfo = rendering_create_info;
+    ImGui_ImplVulkan_Init(&init_info);
 }
 
 void vkpong::vulkan_renderer::record_command_buffer(
@@ -513,6 +580,9 @@ void vkpong::vulkan_renderer::record_command_buffer(
         &ball_push_values);
 
     vkCmdDrawIndexed(command_buffer, count_cast(indices.size()), 1, 0, 0, 2);
+
+    ImGui::Render();
+    ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), command_buffer);
 
     vkCmdEndRendering(command_buffer);
 

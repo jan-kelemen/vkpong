@@ -17,7 +17,7 @@ namespace vkpong
         float player_position{};
         float npc_position{};
         std::pair<float, float> ball_position{};
-        std::pair<float, float> ball_vector{0.01, 0.01};
+        std::pair<float, float> ball_vector{0.01f, 0.01f};
 
         void tick();
 

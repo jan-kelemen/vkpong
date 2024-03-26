@@ -46,6 +46,8 @@ namespace vkpong
     public: // Interface
         [[nodiscard]] constexpr VkExtent2D extent() const noexcept;
 
+        [[nodiscard]] constexpr VkQueue graphics_queue() const noexcept;
+
         [[nodiscard]] constexpr VkFormat image_format() const noexcept;
 
         [[nodiscard]] constexpr VkImage image(
@@ -120,6 +122,12 @@ namespace vkpong
 inline constexpr VkExtent2D vkpong::vulkan_swap_chain::extent() const noexcept
 {
     return extent_;
+}
+
+inline constexpr VkQueue
+vkpong::vulkan_swap_chain::graphics_queue() const noexcept
+{
+    return graphics_queue_;
 }
 
 inline constexpr VkFormat

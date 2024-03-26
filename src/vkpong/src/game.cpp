@@ -27,7 +27,7 @@ void vkpong::game::tick()
     {
         if (std::abs(npc_position - ball_position.second) >= 0.2f)
         {
-            ball_position = {0, 0};
+            ball_position = {0.f, 0.f};
             return;
         }
         else
@@ -39,7 +39,7 @@ void vkpong::game::tick()
     {
         if (std::abs(player_position - ball_position.second) >= 0.2f)
         {
-            ball_position = {0, 0};
+            ball_position = {0.f, 0.f};
             return;
         }
         else

@@ -1,4 +1,6 @@
 #include <game.hpp>
+#include <imgui_impl_glfw.hpp>
+#include <imgui_impl_vulkan.hpp>
 #include <vulkan_context.hpp>
 #include <vulkan_device.hpp>
 #include <vulkan_renderer.hpp>
@@ -31,7 +33,7 @@ namespace
                   enable_validation_layers)}
             , device_{vkpong::create_device(context_)}
             , swap_chain_{window_.handle(), &context_, &device_}
-            , renderer_{&context_, &device_, &swap_chain_}
+            , renderer_{window_.handle(), &context_, &device_, &swap_chain_}
         {
             glfwSetWindowUserPointer(window_.handle(), this);
             glfwSetFramebufferSizeCallback(window_.handle(),
@@ -58,6 +60,11 @@ namespace
                         game_.tick();
                         last_tick_time_ = now;
                     }
+
+                    ImGui_ImplVulkan_NewFrame();
+                    ImGui_ImplGlfw_NewFrame();
+                    ImGui::NewFrame();
+                    ImGui::ShowDemoWindow();
 
                     renderer_.draw(game_);
                 });

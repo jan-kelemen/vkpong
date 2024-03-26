@@ -12,6 +12,7 @@ option(VKPONG_ENABLE_IWYU "Enable include-what-you-use in build" OFF)
 
 find_package(glfw3 REQUIRED)
 find_package(glm REQUIRED)
+find_package(imgui REQUIRED)
 find_package(spdlog REQUIRED)
 find_package(VulkanHeaders REQUIRED)
 find_package(VulkanLoader REQUIRED)

@@ -9,6 +9,8 @@
 #include <memory>
 #include <vector>
 
+struct GLFWwindow;
+
 namespace vkpong
 {
     class game;
@@ -24,7 +26,8 @@ namespace vkpong
     class [[nodiscard]] vulkan_renderer final
     {
     public: // Construction
-        vulkan_renderer(vulkan_context* context,
+        vulkan_renderer(GLFWwindow* windiw,
+            vulkan_context* context,
             vulkan_device* device,
             vulkan_swap_chain* swap_chain);
 
@@ -44,6 +47,8 @@ namespace vkpong
         vulkan_renderer& operator=(vulkan_renderer&&) noexcept = delete;
 
     private: // Helpers
+        void init_imgui();
+
         void record_command_buffer(VkCommandBuffer& command_buffer,
             VkDescriptorSet const& descriptor_set,
             uint32_t image_index);
@@ -59,6 +64,7 @@ namespace vkpong
         void cleanup_images();
 
     private: // Data
+        GLFWwindow* window_;
         vulkan_context* context_;
         vulkan_device* device_;
         vulkan_swap_chain* swap_chain_;
